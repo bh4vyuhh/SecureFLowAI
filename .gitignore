@@ -1,0 +1,17 @@
+# Java
+target/
+
+# React
+node_modules/
+
+# Python
+venv/
+__pycache__/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
