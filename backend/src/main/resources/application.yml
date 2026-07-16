@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: secureflow-backend
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+server:
+  port: 8080
