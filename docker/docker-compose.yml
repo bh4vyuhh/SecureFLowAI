@@ -1,0 +1,22 @@
+
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: secureflow-postgres
+
+    restart: always
+
+    environment:
+      POSTGRES_DB: secureflow
+      POSTGRES_USER: secureflow
+      POSTGRES_PASSWORD: secureflow123
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
