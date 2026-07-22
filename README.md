@@ -14,4 +14,4 @@ AI-powered Data Leakage Prevention Platform
 
 Status
 
-Sprint 0
+v.0.2
