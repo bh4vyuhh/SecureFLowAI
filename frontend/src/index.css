@@ -1,0 +1,62 @@
+@import url('https://fonts.cdnfonts.com/css/google-sans');
+@import "tailwindcss";
+
+:root {
+  --font-sans: 'Google Sans', 'Product Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Google Sans', 'Product Sans', system-ui, -apple-system, sans-serif;
+  
+  --bg-main: #000000;
+  --bg-card: #0c0c0e;
+  --bg-input: #121316;
+  --border-card: #18191c;
+  
+  --color-green: #8df85f;
+  --color-orange: #f38933;
+  --color-white: #ffffff;
+  --color-gray-dark: #191a1f;
+  --color-gray-light: #8e8f96;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-main);
+  color: var(--color-white);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: #25262c;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3b45;
+}
+
+.recharts-responsive-container {
+  font-family: var(--font-mono);
+}
+
+.timeline-track {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px,
+    transparent 50px
+  );
+}
