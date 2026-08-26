@@ -112,15 +112,15 @@ def download_roberta_pii_synth():
         print(f" -> Found existing RoBERTa PII Synth Arrow dataset at {dest_dir}")
         return True
 
-    print(" -> Fetching RoBERTa PII Synth dataset from Hugging Face...")
+    print(" -> Fetching RoBERTa PII Synth dataset from Hugging Face (tursunait/RoBERTa-pii-synth)...")
     try:
         from datasets import load_dataset
-        ds = load_dataset("urchade/synthetic-pii-ner")
+        ds = load_dataset("tursunait/RoBERTa-pii-synth")
         ds.save_to_disk(str(dest_dir))
         print(f" -> [SUCCESS] Saved RoBERTa PII Arrow dataset to {dest_dir}")
         return True
     except Exception as e:
-        print(f" -> [INFO] Note fetching synthetic-pii-ner: {e}")
+        print(f" -> [INFO] Note fetching tursunait/RoBERTa-pii-synth: {e}")
         return False
 
 
@@ -132,10 +132,10 @@ def download_um_dlp_benchmark():
         print(f" -> Found existing UM-DLP benchmark files at {dest_dir}")
         return True
 
-    print(" -> Fetching UM-DLP benchmark dataset...")
+    print(" -> Fetching UM-DLP benchmark dataset (alibustami/UM-DLP-Public-Benchmarking-Dataset)...")
     try:
         from datasets import load_dataset
-        ds = load_dataset("maison/um-dlp-public-benchmarking")
+        ds = load_dataset("alibustami/UM-DLP-Public-Benchmarking-Dataset")
         ds.save_to_disk(str(dest_dir))
         print(f" -> [SUCCESS] Saved UM-DLP Arrow dataset to {dest_dir}")
         return True
@@ -203,7 +203,24 @@ def download_stargate_pdfs():
         print(f" -> Found {pdf_count} existing STARGATE PDFs in {dest_dir}")
         return True
 
-    print(" -> Searching local and remote archives for STARGATE PDFs...")
+    print(" -> Fetching STARGATE PDF corpus from Hugging Face (GotThatData/STARGATE)...")
+    try:
+        from huggingface_hub import snapshot_download
+        snapshot_download(
+            repo_id="GotThatData/STARGATE",
+            repo_type="dataset",
+            local_dir=str(dest_dir),
+            allow_patterns=["*.pdf"],
+            max_workers=4,
+        )
+        pdf_count_new = len(list(dest_dir.glob("*.pdf")))
+        if pdf_count_new > 0:
+            print(f" -> [SUCCESS] Downloaded {pdf_count_new} STARGATE PDFs from Hugging Face to {dest_dir}")
+            return True
+    except Exception as e:
+        print(f" -> [INFO] Note fetching from GotThatData/STARGATE: {e}")
+
+    print(" -> Searching local and fallback archives for STARGATE PDFs...")
     project_root = DATA_DIR.parent.parent
     alt_dirs = [
         project_root / "dataset" / "confidential_documents" / "stargate" / "data",
@@ -225,7 +242,7 @@ def download_stargate_pdfs():
                 print(f" -> [SUCCESS] Copied {copied} STARGATE PDFs from {alt} to {dest_dir}")
                 return True
 
-    print(f" -> [INFO] To populate STARGATE PDFs, place PDF files into: {dest_dir}")
+    print(f" -> [INFO] Place STARGATE PDF files into: {dest_dir}")
     return False
 
 
