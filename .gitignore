@@ -3,15 +3,53 @@ target/
 
 # React
 node_modules/
+dist/
+build/
 
 # Python
 venv/
+.venv/
+env/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+.pytest_cache/
 
-# IDE
+# IDE & OS
 .idea/
 .vscode/
-
-# OS
 .DS_Store
 Thumbs.db
+*.log
+
+# AI Service Datasets & Heavy Artifacts (Reproducible via ai-service/data/scripts/)
+ai-service/data/raw/**
+!ai-service/data/raw/**/
+!ai-service/data/raw/**/.gitkeep
+
+ai-service/data/processed/**
+!ai-service/data/processed/**/
+!ai-service/data/processed/**/.gitkeep
+
+ai-service/data/benchmarks/ocr_pipeline/pdf_test_corpus/**
+!ai-service/data/benchmarks/ocr_pipeline/pdf_test_corpus/
+!ai-service/data/benchmarks/ocr_pipeline/pdf_test_corpus/.gitkeep
+
+ai-service/data/benchmarks/pii_extraction/*.jsonl
+ai-service/data/benchmarks/corporate_generalization/*.csv
+ai-service/data/benchmarks/contextual_sensitivity/*.csv
+ai-service/data/benchmarks/dlp_robustness/*.csv
+
+# AI Service Model Checkpoints & Serialized Weights
+ai-service/models/*.joblib
+ai-service/models/*.pt
+ai-service/models/*.bin
+ai-service/models/*.onnx
+ai-service/models/*.safetensors
+!ai-service/models/.gitkeep
+
+# Cache directories
+.cache/
+hf_cache/
