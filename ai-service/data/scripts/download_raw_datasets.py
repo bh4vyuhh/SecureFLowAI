@@ -246,6 +246,25 @@ def download_stargate_pdfs():
     return False
 
 
+def download_from_custom_hf_repo(repo_id: str, token: str = None):
+    """Downloads all raw datasets from the user's personal Hugging Face repository snapshot."""
+    print(f"\n[HUGGING FACE SNAPSHOT] Downloading entire raw dataset from: {repo_id}...")
+    try:
+        from huggingface_hub import snapshot_download
+        snapshot_download(
+            repo_id=repo_id,
+            repo_type="dataset",
+            local_dir=str(RAW_DIR),
+            token=token,
+            max_workers=4,
+        )
+        print(f" -> [SUCCESS] All datasets downloaded and extracted directly to {RAW_DIR}")
+        return True
+    except Exception as e:
+        print(f" -> [ERROR] Failed to download from Hugging Face repo {repo_id}: {e}")
+        return False
+
+
 DOWNLOADERS = {
     "disc": download_disc,
     "medical_phi": download_medical_phi,
@@ -265,11 +284,27 @@ def main():
         default="all",
         help="Specify which dataset to download or verify (default: all)",
     )
+    parser.add_argument(
+        "--hf-repo",
+        type=str,
+        default=None,
+        help="Download entire raw dataset snapshot from your personal Hugging Face repo (e.g. 'username/secureflow-ai-datasets')",
+    )
+    parser.add_argument(
+        "--token",
+        type=str,
+        default=None,
+        help="Hugging Face API token (if repo is private)",
+    )
     args = parser.parse_args()
 
     print("=" * 80)
     print(" SECUREFLOW AI — RAW DATASET INGESTION & DOWNLOAD SUITE")
     print("=" * 80)
+
+    if args.hf_repo:
+        download_from_custom_hf_repo(args.hf_repo, token=args.token)
+        return
 
     if args.dataset == "all":
         results = {}

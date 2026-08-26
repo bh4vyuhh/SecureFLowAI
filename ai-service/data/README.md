@@ -14,6 +14,12 @@ cd ai-service/data/scripts
 # 1. Master one-click end-to-end reproduction (download -> process -> showcase -> train)
 python reproduce_all.py --all
 
+# Or download all raw datasets from your personal Hugging Face repository snapshot:
+python download_raw_datasets.py --hf-repo <your-username>/secureflow-ai-datasets
+
+# Or upload your local raw datasets to your Hugging Face account:
+python upload_to_huggingface.py --repo-id <your-username>/secureflow-ai-datasets --private
+
 # Or run individual stages:
 # Download / verify raw datasets only
 python download_raw_datasets.py --dataset all
@@ -35,6 +41,28 @@ python present_datasets.py
 # Train baseline 4-tier document classifier
 python train_classifier.py
 ```
+
+---
+
+### ☁️ Uploading to Your Personal Hugging Face Dataset Repo
+
+If you want to host all 5.12 GB of raw datasets on your own Hugging Face account (free and private):
+
+1. **Log in to Hugging Face**:
+   ```bash
+   pip install huggingface_hub
+   huggingface-cli login
+   ```
+2. **Upload your local raw folder**:
+   ```bash
+   cd ai-service/data/scripts
+   python upload_to_huggingface.py --repo-id <your-username>/secureflow-ai-datasets --private
+   ```
+3. **Download on any fresh machine**:
+   ```bash
+   python download_raw_datasets.py --hf-repo <your-username>/secureflow-ai-datasets
+   python organize_datasets.py --target all
+   ```
 
 ---
 
