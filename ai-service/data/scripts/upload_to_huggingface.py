@@ -33,17 +33,15 @@ def upload_individual_dataset(api, repo_id: str, subfolder_name: str, token: str
 
     print(f"\n>>> Uploading dataset: '{subfolder_name}' -> HF repo '{repo_id}/{subfolder_name}'...")
     try:
-        # Check if subfolder has many files (like stargate_pdfs)
-        file_count = len(list(local_subfolder.glob("**/*")))
-        if file_count > 500 and hasattr(api, "upload_large_folder"):
-            print(f" -> Large folder detected ({file_count} files). Using upload_large_folder with batching...")
+        if subfolder_name == "stargate_pdfs":
+            print(f" -> Large PDF archive detected (7,300+ PDFs). Using upload_large_folder with multi-worker chunked commits...")
             api.upload_large_folder(
                 repo_id=repo_id,
-                folder_path=str(local_subfolder),
+                folder_path=str(RAW_DIR),
                 repo_type="dataset",
-                path_in_repo=subfolder_name,
+                allow_patterns=["stargate_pdfs/**", "stargate_pdfs/*"],
                 ignore_patterns=[".gitkeep"],
-                num_workers=4,
+                num_workers=8,
             )
         else:
             api.upload_folder(
