@@ -33,14 +33,9 @@ ai-service/data/processed/**
 !ai-service/data/processed/**/
 !ai-service/data/processed/**/.gitkeep
 
-ai-service/data/benchmarks/ocr_pipeline/pdf_test_corpus/**
-!ai-service/data/benchmarks/ocr_pipeline/pdf_test_corpus/
-!ai-service/data/benchmarks/ocr_pipeline/pdf_test_corpus/.gitkeep
-
-ai-service/data/benchmarks/pii_extraction/*.jsonl
-ai-service/data/benchmarks/corporate_generalization/*.csv
-ai-service/data/benchmarks/contextual_sensitivity/*.csv
-ai-service/data/benchmarks/dlp_robustness/*.csv
+ai-service/data/benchmarks/**
+!ai-service/data/benchmarks/**/
+!ai-service/data/benchmarks/**/.gitkeep
 
 # AI Service Model Checkpoints & Serialized Weights
 ai-service/models/*.joblib
