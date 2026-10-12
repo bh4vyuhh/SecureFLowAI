@@ -23,6 +23,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.log
+~$*
+
 
 # AI Service Datasets & Heavy Artifacts (Reproducible via ai-service/data/scripts/)
 ai-service/data/raw/**
@@ -47,4 +49,8 @@ ai-service/models/*.safetensors
 
 # Cache directories
 .cache/
-hf_cache/
+hf_cache/
+
+# Generated Dataset Outputs
+dataset_output/
+
