@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SecureFlow AI DLP</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="header">
+      <div class="brand">
+        <div class="logo-badge">SF</div>
+        <div>
+          <h2>SecureFlow AI</h2>
+          <span class="subtitle">Browser DLP Guardian</span>
+        </div>
+      </div>
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot online"></span>
+        <span class="status-text" id="statusText">Active</span>
+      </div>
+    </header>
+
+    <div class="toggle-card">
+      <div class="toggle-info">
+        <strong>Real-time Paste Guard</strong>
+        <p>Intercepts clipboard and paste into browser forms</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="guardToggle" checked>
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <div class="config-section">
+      <label for="gatewayInput">Ingestion Gateway URL</label>
+      <div class="input-row">
+        <input type="text" id="gatewayInput" placeholder="http://localhost:9090/api/v1/events/ingest">
+        <button id="saveConfigBtn" title="Save Gateway Settings">Save</button>
+      </div>
+    </div>
+
+    <div class="events-section">
+      <div class="events-header">
+        <span>Recent Interceptions</span>
+        <button id="clearLogsBtn">Clear</button>
+      </div>
+      <div class="events-list" id="eventsList">
+        <div class="empty-state">No sensitive events intercepted yet.</div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <span>SecureFlow AI &bull; Capture Layer v1.0</span>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

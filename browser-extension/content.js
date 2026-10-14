@@ -1,0 +1,129 @@
+/**
+ * SecureFlow AI - Content Script (Manifest V3)
+ * Intercepts paste events on inputs, textareas, and contenteditable elements.
+ * Evaluates sensitive patterns locally for immediate feedback and forwards
+ * events to background service worker for DLP gateway ingestion.
+ */
+
+(function () {
+  console.log("%c[SecureFlow AI]%c DLP Browser Agent Initialized.", "color: #8df85f; font-weight: bold;", "color: inherit;");
+
+  // Regex patterns for instant in-browser detection
+  const DLP_PATTERNS = {
+    SSN: /\b\d{3}-\d{2}-\d{4}\b/,
+    CREDIT_CARD: /\b(?:\d[ -]*?){13,16}\b/,
+    API_KEY: /\b(?:key|secret|token|password)[a-zA-Z0-9_]{10,30}\b/i,
+    EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
+  };
+
+  function detectSensitivePii(text) {
+    const hits = [];
+    if (DLP_PATTERNS.SSN.test(text)) hits.push("SSN");
+    if (DLP_PATTERNS.CREDIT_CARD.test(text)) hits.push("Credit Card");
+    if (DLP_PATTERNS.API_KEY.test(text)) hits.push("API Key / Token");
+    return hits;
+  }
+
+  // Intercept paste event at capture phase
+  document.addEventListener("paste", function (event) {
+    try {
+      const clipboardData = event.clipboardData || window.clipboardData;
+      if (!clipboardData) return;
+
+      const pastedText = clipboardData.getData("text");
+      if (!pastedText || pastedText.trim().length < 5) return;
+
+      const target = event.target;
+      const targetTagName = target.tagName ? target.tagName.toLowerCase() : "unknown";
+      const targetIdentifier = target.id || target.name || target.getAttribute("aria-label") || targetTagName;
+
+      const detected = detectSensitivePii(pastedText);
+
+      // Construct normalized Capture Layer DTO
+      const eventPayload = {
+        eventId: "ext-" + Math.random().toString(36).substring(2, 10),
+        timestamp: new Date().toISOString(),
+        source: "CHROME_EXTENSION",
+        eventType: "BROWSER_PASTE",
+        content: pastedText,
+        fileName: `web_paste_${window.location.hostname}.txt`,
+        metadata: {
+          url: window.location.href,
+          hostname: window.location.hostname,
+          pageTitle: document.title,
+          targetField: targetIdentifier,
+          targetType: targetTagName,
+          instantFlags: detected
+        }
+      };
+
+      // If high-confidence PII is pasted, show on-page floating banner
+      if (detected.length > 0) {
+        showInPageAlert(detected, targetIdentifier);
+      }
+
+      // Send event to service worker
+      chrome.runtime.sendMessage({
+        type: "SECUREFLOW_INGEST_EVENT",
+        payload: eventPayload
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          // Service worker might be sleeping
+          console.warn("[SecureFlow AI] Background worker unavailable:", chrome.runtime.lastError.message);
+        } else if (response && response.riskScore > 75) {
+          showInPageAlert([`Risk Score: ${response.riskScore}/100 - ${response.actionTaken || 'Restricted'}`], targetIdentifier);
+        }
+      });
+
+    } catch (err) {
+      console.error("[SecureFlow AI] Content script error:", err);
+    }
+  }, true); // Use capture phase so we see paste before target handles it
+
+  function showInPageAlert(reasons, field) {
+    const existing = document.getElementById("sf-dlp-alert-banner");
+    if (existing) existing.remove();
+
+    const banner = document.createElement("div");
+    banner.id = "sf-dlp-alert-banner";
+    banner.style.cssText = `
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      background: #0c0c0e;
+      color: #ffffff;
+      border: 1px solid #ff4d4f;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      padding: 12px 16px;
+      border-radius: 12px;
+      z-index: 2147483647;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: sfFadeIn 0.3s ease-out;
+    `;
+
+    banner.innerHTML = `
+      <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff4d4f; box-shadow: 0 0 8px #ff4d4f;"></div>
+      <div>
+        <div style="font-weight: bold; color: #ff7875;">SecureFlow DLP Warning</div>
+        <div style="color: #a0a0a5; font-size: 11px;">Sensitive pattern pasted into [${field}]: ${reasons.join(", ")}</div>
+      </div>
+      <button id="sf-close-btn" style="background: transparent; border: none; color: #888; font-size: 16px; cursor: pointer; margin-left: 8px;">&times;</button>
+    `;
+
+    document.body.appendChild(banner);
+
+    document.getElementById("sf-close-btn")?.addEventListener("click", () => {
+      banner.remove();
+    });
+
+    setTimeout(() => {
+      if (banner && banner.parentNode) {
+        banner.remove();
+      }
+    }, 6000);
+  }
+})();
