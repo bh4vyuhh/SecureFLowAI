@@ -1,0 +1,44 @@
+{
+  "model_type": "TF-IDF + Logistic Regression (Baseline)",
+  "train_samples": 50000,
+  "test_samples": 15750,
+  "train_time_sec": 17.44,
+  "accuracy": 0.9502,
+  "macro_f1": 0.9501,
+  "macro_precision": 0.9501,
+  "macro_recall": 0.9502,
+  "restricted_leak_recall": 0.9848,
+  "class_report": {
+    "SAFE": {
+      "precision": 0.9347949347949348,
+      "recall": 0.9420952380952381,
+      "f1-score": 0.9384308889099706,
+      "support": 5250.0
+    },
+    "CONFIDENTIAL": {
+      "precision": 0.9382859353840202,
+      "recall": 0.9238095238095239,
+      "f1-score": 0.9309914579134274,
+      "support": 5250.0
+    },
+    "RESTRICTED": {
+      "precision": 0.9773156899810964,
+      "recall": 0.9847619047619047,
+      "f1-score": 0.9810246679316889,
+      "support": 5250.0
+    },
+    "accuracy": 0.9502222222222222,
+    "macro avg": {
+      "precision": 0.9501321867200172,
+      "recall": 0.9502222222222222,
+      "f1-score": 0.9501490049183623,
+      "support": 15750.0
+    },
+    "weighted avg": {
+      "precision": 0.9501321867200171,
+      "recall": 0.9502222222222222,
+      "f1-score": 0.9501490049183624,
+      "support": 15750.0
+    }
+  }
+}

@@ -40,12 +40,13 @@ ai-service/data/benchmarks/**
 !ai-service/data/benchmarks/**/.gitkeep
 
 # AI Service Model Checkpoints & Serialized Weights
-ai-service/models/*.joblib
-ai-service/models/*.pt
-ai-service/models/*.bin
-ai-service/models/*.onnx
-ai-service/models/*.safetensors
-!ai-service/models/.gitkeep
+ai-service/models/**/*.joblib
+ai-service/models/**/*.pt
+ai-service/models/**/*.bin
+ai-service/models/**/*.onnx
+ai-service/models/**/*.safetensors
+ai-service/models/checkpoints/
+!ai-service/models/**/.gitkeep
 
 # Cache directories
 .cache/

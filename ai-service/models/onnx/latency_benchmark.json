@@ -1,0 +1,12 @@
+{
+  "benchmark_samples": 100,
+  "mean_latency_ms": 1.99,
+  "p50_latency_ms": 1.82,
+  "p95_latency_ms": 2.94,
+  "p99_latency_ms": 3.6,
+  "min_latency_ms": 1.07,
+  "max_latency_ms": 3.88,
+  "throughput_qps": 502.3,
+  "sla_target_ms": 25.0,
+  "sla_passed": true
+}

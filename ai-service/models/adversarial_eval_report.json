@@ -1,0 +1,39 @@
+{
+  "model_type": "ONNX INT8 (model_int8.onnx)",
+  "total_test_cases": 1343,
+  "overall_defense_accuracy": 0.3336,
+  "overall_evasion_rate": 0.6664,
+  "restricted_leak_recall": 1.0,
+  "sla_target_met": false,
+  "category_breakdown": {
+    "Contextual Traps / Hard Negatives": {
+      "samples": 671,
+      "defended": 0,
+      "evaded": 671,
+      "defense_accuracy_pct": 0.0,
+      "evasion_rate_pct": 100.0
+    },
+    "Contextual Variation / Obfuscation": {
+      "samples": 216,
+      "defended": 121,
+      "evaded": 95,
+      "defense_accuracy_pct": 56.02,
+      "evasion_rate_pct": 43.98
+    },
+    "Delimiter Stuffing": {
+      "samples": 13,
+      "defended": 11,
+      "evaded": 2,
+      "defense_accuracy_pct": 84.62,
+      "evasion_rate_pct": 15.38
+    },
+    "Leetspeak / Character Substitution": {
+      "samples": 443,
+      "defended": 316,
+      "evaded": 127,
+      "defense_accuracy_pct": 71.33,
+      "evasion_rate_pct": 28.67
+    }
+  },
+  "timestamp": "2026-10-14 14:24:33 UTC"
+}

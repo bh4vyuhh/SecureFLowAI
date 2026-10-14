@@ -934,13 +934,22 @@ def main():
         args.max_fingpt_samples = 1000
         args.max_roberta_samples = 500
 
-    # Dynamic path resolution if running from child directory
+    # Dynamic path resolution across all directory levels
     raw_dir = args.raw_dir
     if not os.path.exists(raw_dir):
-        alt_raw = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ai-service", "data", "raw")
-        if os.path.exists(alt_raw):
-            raw_dir = alt_raw
-            logger.info(f"Resolved raw data directory to: {raw_dir}")
+        current_file_dir = os.path.dirname(os.path.abspath(__file__))
+        alt_candidates = [
+            os.path.abspath(os.path.join(current_file_dir, "..", "raw")),
+            os.path.abspath(os.path.join(current_file_dir, "..", "..", "data", "raw")),
+            os.path.abspath(os.path.join(current_file_dir, "ai-service", "data", "raw")),
+            os.path.abspath("./ai-service/data/raw"),
+            os.path.abspath("./data/raw")
+        ]
+        for alt in alt_candidates:
+            if os.path.exists(alt):
+                raw_dir = alt
+                logger.info(f"Resolved raw data directory to: {raw_dir}")
+                break
 
     logger.info("=" * 80)
     logger.info(" SECUREFLOW AI: BANKING DLP 3-CLASS DATASET PREPARATION PIPELINE")
