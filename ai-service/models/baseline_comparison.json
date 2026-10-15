@@ -2,42 +2,42 @@
   "model_type": "TF-IDF + Logistic Regression (Baseline)",
   "train_samples": 50000,
   "test_samples": 15750,
-  "train_time_sec": 17.44,
-  "accuracy": 0.9502,
-  "macro_f1": 0.9501,
-  "macro_precision": 0.9501,
-  "macro_recall": 0.9502,
-  "restricted_leak_recall": 0.9848,
+  "train_time_sec": 17.29,
+  "accuracy": 0.9488,
+  "macro_f1": 0.9488,
+  "macro_precision": 0.9488,
+  "macro_recall": 0.9488,
+  "restricted_leak_recall": 0.9832,
   "class_report": {
     "SAFE": {
-      "precision": 0.9347949347949348,
-      "recall": 0.9420952380952381,
-      "f1-score": 0.9384308889099706,
+      "precision": 0.931390977443609,
+      "recall": 0.9438095238095238,
+      "f1-score": 0.9375591296121097,
       "support": 5250.0
     },
     "CONFIDENTIAL": {
-      "precision": 0.9382859353840202,
-      "recall": 0.9238095238095239,
-      "f1-score": 0.9309914579134274,
+      "precision": 0.9378278608898387,
+      "recall": 0.9194285714285715,
+      "f1-score": 0.9285370780032701,
       "support": 5250.0
     },
     "RESTRICTED": {
-      "precision": 0.9773156899810964,
-      "recall": 0.9847619047619047,
-      "f1-score": 0.9810246679316889,
+      "precision": 0.977096346772667,
+      "recall": 0.9832380952380952,
+      "f1-score": 0.9801575999240483,
       "support": 5250.0
     },
-    "accuracy": 0.9502222222222222,
+    "accuracy": 0.9488253968253968,
     "macro avg": {
-      "precision": 0.9501321867200172,
-      "recall": 0.9502222222222222,
-      "f1-score": 0.9501490049183623,
+      "precision": 0.9487717283687048,
+      "recall": 0.9488253968253968,
+      "f1-score": 0.9487512691798093,
       "support": 15750.0
     },
     "weighted avg": {
-      "precision": 0.9501321867200171,
-      "recall": 0.9502222222222222,
-      "f1-score": 0.9501490049183624,
+      "precision": 0.9487717283687049,
+      "recall": 0.9488253968253968,
+      "f1-score": 0.9487512691798093,
       "support": 15750.0
     }
   }

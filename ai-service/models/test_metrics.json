@@ -1,59 +1,59 @@
 {
   "model_name": "sentence-transformers/all-MiniLM-L6-v2",
-  "test_accuracy": 0.385,
-  "test_macro_f1": 0.1853,
-  "test_restricted_leak_recall": 1.0,
-  "test_macro_precision": 0.1283,
-  "test_macro_recall": 0.3333,
+  "test_accuracy": 0.914,
+  "test_macro_f1": 0.9136,
+  "test_restricted_leak_recall": 0.9941,
+  "test_macro_precision": 0.9142,
+  "test_macro_recall": 0.914,
   "classification_report": {
     "SAFE": {
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1-score": 0.0,
-      "support": 55.0
+      "precision": 0.8604735883424408,
+      "recall": 0.8998095238095238,
+      "f1-score": 0.8797020484171322,
+      "support": 5250.0
     },
     "CONFIDENTIAL": {
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1-score": 0.0,
-      "support": 68.0
+      "precision": 0.9057985757884028,
+      "recall": 0.848,
+      "f1-score": 0.8759468765371372,
+      "support": 5250.0
     },
     "RESTRICTED": {
-      "precision": 0.385,
-      "recall": 1.0,
-      "f1-score": 0.555956678700361,
-      "support": 77.0
+      "precision": 0.9764265668849392,
+      "recall": 0.9940952380952381,
+      "f1-score": 0.985181689476168,
+      "support": 5250.0
     },
-    "accuracy": 0.385,
+    "accuracy": 0.913968253968254,
     "macro avg": {
-      "precision": 0.12833333333333333,
-      "recall": 0.3333333333333333,
-      "f1-score": 0.18531889290012035,
-      "support": 200.0
+      "precision": 0.9142329103385943,
+      "recall": 0.9139682539682541,
+      "f1-score": 0.9136102048101459,
+      "support": 15750.0
     },
     "weighted avg": {
-      "precision": 0.148225,
-      "recall": 0.385,
-      "f1-score": 0.21404332129963902,
-      "support": 200.0
+      "precision": 0.9142329103385943,
+      "recall": 0.913968253968254,
+      "f1-score": 0.9136102048101459,
+      "support": 15750.0
     }
   },
   "confusion_matrix": [
     [
-      0,
-      0,
-      55
-    ],
-    [
-      0,
-      0,
-      68
-    ],
-    [
-      0,
-      0,
+      4724,
+      449,
       77
+    ],
+    [
+      749,
+      4452,
+      49
+    ],
+    [
+      17,
+      14,
+      5219
     ]
   ],
-  "training_time_sec": 81.47
+  "training_time_sec": 8773.19
 }

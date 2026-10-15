@@ -92,6 +92,26 @@ def classify_attack_vector(row: pd.Series) -> str:
 
 
 # -----------------------------------------------------------------------------
+def get_default_paths() -> Tuple[Path, Path, Path]:
+    """
+    Robustly resolves project root, ai-service directory, and models directory.
+    """
+    current_dir = Path(__file__).resolve().parent
+    if "ai-service" in [p.name for p in current_dir.parents] or current_dir.name == "ai-service":
+        for p in [current_dir] + list(current_dir.parents):
+            if p.name == "ai-service":
+                ai_service_dir = p
+                project_root = p.parent
+                break
+    else:
+        project_root = current_dir.parent
+        ai_service_dir = project_root / "ai-service" if (project_root / "ai-service").exists() else project_root
+
+    models_dir = ai_service_dir / "models"
+    return project_root, ai_service_dir, models_dir
+
+
+# -----------------------------------------------------------------------------
 # Benchmark Data Ingestion
 # -----------------------------------------------------------------------------
 def load_adversarial_benchmark(
@@ -106,11 +126,15 @@ def load_adversarial_benchmark(
     if benchmark_csv:
         candidates.append(Path(benchmark_csv))
 
-    if project_root:
+    if project_root and ai_service_dir:
         candidates.extend([
+            ai_service_dir / "data" / "processed" / "adversarial_benchmark.csv",
             ai_service_dir / "data" / "processed" / "document_classification" / "adversarial_benchmark.csv",
             ai_service_dir / "data" / "processed" / "secureflow_banking_dlp_3class" / "adversarial_benchmark.csv",
-            project_root / "dataset_output" / "adversarial_benchmark.csv"
+            ai_service_dir / "data" / "benchmarks" / "um_dlp.csv",
+            project_root / "dataset_output" / "adversarial_benchmark.csv",
+            Path("./dataset_output/adversarial_benchmark.csv"),
+            Path("./ai-service/data/processed/adversarial_benchmark.csv")
         ])
 
     for c in candidates:
@@ -131,19 +155,34 @@ def load_adversarial_benchmark(
     # Fallback to loading DatasetDict from disk
     try:
         from datasets import load_from_disk
-        ds_path = project_root / "dataset_output"
-        if ds_path.exists():
-            ds = load_from_disk(str(ds_path))
-            if "adversarial_benchmark" in ds:
-                df = ds["adversarial_benchmark"].to_pandas()
-                logger.info(f"Loaded {len(df)} records from DatasetDict['adversarial_benchmark']")
-                return df
+        candidate_ds = [
+            project_root / "dataset_output" if project_root else Path("./dataset_output"),
+            ai_service_dir / "data" / "processed" / "secureflow_banking_dlp_3class" if ai_service_dir else Path("./data/processed/secureflow_banking_dlp_3class")
+        ]
+        for ds_path in candidate_ds:
+            if ds_path.exists():
+                ds = load_from_disk(str(ds_path))
+                if "adversarial_benchmark" in ds:
+                    df = ds["adversarial_benchmark"].to_pandas()
+                    logger.info(f"Loaded {len(df)} records from DatasetDict['adversarial_benchmark']")
+                    return df
     except Exception as e:
         logger.warning(f"Could not load DatasetDict from disk: {e}")
 
+    # Fallback to loading Parquet
+    parquet_candidates = [
+        project_root / "dataset_output" / "parquet" / "adversarial_benchmark.parquet" if project_root else Path("./dataset_output/parquet/adversarial_benchmark.parquet"),
+        ai_service_dir / "data" / "processed" / "document_classification" / "parquet" / "adversarial_benchmark.parquet" if ai_service_dir else Path("./ai-service/data/processed/document_classification/parquet/adversarial_benchmark.parquet")
+    ]
+    for pq in parquet_candidates:
+        if pq.exists():
+            df = pd.read_parquet(pq)
+            logger.info(f"Loaded {len(df)} records from {pq}")
+            return df
+
     raise FileNotFoundError(
         "Could not locate adversarial_benchmark.csv. "
-        "Please specify --benchmark_csv or run prepare_secureflow_banking_dataset.py first."
+        "Please specify --benchmark_csv or verify ai-service/data/processed/adversarial_benchmark.csv."
     )
 
 
@@ -224,13 +263,8 @@ class ONNXPredictor:
 
 
 # -----------------------------------------------------------------------------
-# Main Adversarial Evaluation Harness
-# -----------------------------------------------------------------------------
 def run_adversarial_evaluation(args: argparse.Namespace):
-    current_dir = Path(__file__).resolve().parent
-    ai_service_dir = current_dir.parent
-    project_root = ai_service_dir.parent
-    models_dir = ai_service_dir / "models"
+    project_root, ai_service_dir, models_dir = get_default_paths()
 
     # 1. Ingest Benchmark Data
     df = load_adversarial_benchmark(args.benchmark_csv, project_root, ai_service_dir)

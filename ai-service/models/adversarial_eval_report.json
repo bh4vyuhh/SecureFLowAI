@@ -1,39 +1,39 @@
 {
   "model_type": "ONNX INT8 (model_int8.onnx)",
   "total_test_cases": 1343,
-  "overall_defense_accuracy": 0.3336,
-  "overall_evasion_rate": 0.6664,
-  "restricted_leak_recall": 1.0,
+  "overall_defense_accuracy": 0.4267,
+  "overall_evasion_rate": 0.5733,
+  "restricted_leak_recall": 0.6138,
   "sla_target_met": false,
   "category_breakdown": {
     "Contextual Traps / Hard Negatives": {
       "samples": 671,
-      "defended": 0,
-      "evaded": 671,
-      "defense_accuracy_pct": 0.0,
-      "evasion_rate_pct": 100.0
+      "defended": 205,
+      "evaded": 466,
+      "defense_accuracy_pct": 30.55,
+      "evasion_rate_pct": 69.45
     },
     "Contextual Variation / Obfuscation": {
       "samples": 216,
-      "defended": 121,
-      "evaded": 95,
-      "defense_accuracy_pct": 56.02,
-      "evasion_rate_pct": 43.98
+      "defended": 78,
+      "evaded": 138,
+      "defense_accuracy_pct": 36.11,
+      "evasion_rate_pct": 63.89
     },
     "Delimiter Stuffing": {
       "samples": 13,
-      "defended": 11,
-      "evaded": 2,
-      "defense_accuracy_pct": 84.62,
-      "evasion_rate_pct": 15.38
+      "defended": 10,
+      "evaded": 3,
+      "defense_accuracy_pct": 76.92,
+      "evasion_rate_pct": 23.08
     },
     "Leetspeak / Character Substitution": {
       "samples": 443,
-      "defended": 316,
-      "evaded": 127,
-      "defense_accuracy_pct": 71.33,
-      "evasion_rate_pct": 28.67
+      "defended": 280,
+      "evaded": 163,
+      "defense_accuracy_pct": 63.21,
+      "evasion_rate_pct": 36.79
     }
   },
-  "timestamp": "2026-10-14 14:24:33 UTC"
+  "timestamp": "2026-10-15 16:07:13 UTC"
 }
