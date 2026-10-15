@@ -47,8 +47,11 @@ def process_eml_directory(directory_path: str, gateway_url: str):
         parsed = EmailParser.parse_eml_file(f)
         dispatcher.dispatch(parsed)
 
-def generate_sample_eml(output_path: str = "sample_confidential.eml"):
+def generate_sample_eml(output_path: str = None):
     """Generates a demo .eml file containing simulated customer PII."""
+    if output_path is None:
+        output_path = os.path.join(os.path.dirname(__file__), "samples", "sample_confidential.eml")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     sample_content = (
         "From: financial_advising@partner-bank.com\n"
         "To: external_contractor@gmail.com\n"
@@ -88,6 +91,6 @@ if __name__ == "__main__":
         process_eml_directory(args.dir, args.gateway_url)
     else:
         # Default behavior: generate a sample and test parse it
-        sample_path = os.path.join(os.path.dirname(__file__), "sample_confidential.eml")
+        sample_path = os.path.join(os.path.dirname(__file__), "samples", "sample_confidential.eml")
         generate_sample_eml(sample_path)
         process_single_eml(sample_path, args.gateway_url)
