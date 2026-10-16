@@ -43,6 +43,13 @@ class IncidentRecord(Base):
     # Zero-Leak SHA-256 Hash of original inspected payload
     payload_sha256 = Column(String(64), index=True, nullable=False)
     
+    # Cryptographic Tamperproof Hash Chaining (Objective 4: Effortless Regulatory Reporting)
+    prev_hash = Column(String(64), default="GENESIS_BLOCK_0000000000000000000000000000000000000000000000000000")
+    audit_hash = Column(String(64), index=True)
+    
+    # Regulatory Compliance Mapping (e.g. ["PCI-DSS-v4.0-Req3", "GDPR-Art32", "RBI-DLP-2023"])
+    compliance_tags = Column(JSON, default=list)
+
     # Counts of entities detected (e.g. {"CREDIT_CARD": 2, "IBAN": 1})
     entity_counts = Column(JSON, default=dict)
     

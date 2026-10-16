@@ -118,7 +118,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex bg-[#07080a] text-slate-200 min-h-screen font-sans">
+    <div className="flex flex-col bg-[#07080a] text-slate-200 min-h-screen font-sans">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -132,18 +132,15 @@ export default function App() {
         }}
       />
 
-      <Sidebar currentView={currentView} setView={setView} alertsCount={alertsCount} wsStatus={wsStatus} />
+      {/* Full-Width Top Header */}
+      <Header currentView={currentView} setView={setView} alertsCount={alertsCount} />
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        <Header
-          currentView={currentView}
-          setView={setView}
-          alertsCount={alertsCount}
-          healthData={healthData}
-          onRefresh={fetchHealth}
-        />
-
-        <main className="flex-grow">{renderView()}</main>
+      {/* Lower Workspace: Sidebar + Main Content */}
+      <div className="flex flex-1 min-h-0">
+        <Sidebar currentView={currentView} setView={setView} alertsCount={alertsCount} wsStatus={wsStatus} />
+        <main className="flex-1 overflow-y-auto">
+          {renderView()}
+        </main>
       </div>
     </div>
   );

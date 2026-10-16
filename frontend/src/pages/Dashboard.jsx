@@ -14,15 +14,10 @@ import {
 } from 'recharts';
 import {
   ShieldAlert,
-  ShieldCheck,
-  Lock,
   Zap,
-  TrendingUp,
-  AlertTriangle,
-  ArrowUpRight,
+  Sparkles,
   ExternalLink,
   Clock,
-  Sparkles,
 } from 'lucide-react';
 import { timelineData, departmentRiskData, entityBreakdownData } from '../utils/mockData';
 import { api } from '../services/api';
@@ -104,81 +99,7 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
         </div>
       </div>
 
-      {/* KPI Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
-        {/* Card 1: Total Scanned */}
-        <div className="banking-card p-5 rounded-2xl relative overflow-hidden">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>Total Inspected</span>
-            <TrendingUp className="w-4 h-4 text-blue-400" />
-          </div>
-          <div className="text-2xl font-extrabold text-white mt-3 font-mono">
-            {stats.total_scanned.toLocaleString()}
-          </div>
-          <div className="text-[10px] text-emerald-400 flex items-center gap-1 mt-2">
-            <span>+14.2%</span> <span className="text-slate-500">vs yesterday</span>
-          </div>
-        </div>
 
-        {/* Card 2: Threats Blocked */}
-        <div className="banking-card p-5 rounded-2xl relative overflow-hidden">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>Blocked Leaks</span>
-            <ShieldAlert className="w-4 h-4 text-red-400" />
-          </div>
-          <div className="text-2xl font-extrabold text-red-400 mt-3 font-mono">
-            {stats.blocked_count.toLocaleString()}
-          </div>
-          <div className="text-[10px] text-red-400/80 mt-2 font-mono">
-            {blockRate}% Critical Exfiltration
-          </div>
-        </div>
-
-        {/* Card 3: Masked & Tokenized */}
-        <div className="banking-card p-5 rounded-2xl relative overflow-hidden">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>HMAC Vaulted</span>
-            <Lock className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-2xl font-extrabold text-amber-400 mt-3 font-mono">
-            {stats.masked_count.toLocaleString()}
-          </div>
-          <div className="text-[10px] text-slate-500 mt-2 font-mono">
-            AES-256-GCM Envelope
-          </div>
-        </div>
-
-        {/* Card 4: P95 CPU Latency */}
-        <div className="banking-card p-5 rounded-2xl relative overflow-hidden">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>P95 CPU Latency</span>
-            <Zap className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-2xl font-extrabold text-emerald-400 mt-3 font-mono">
-            {stats.avg_latency_ms} ms
-          </div>
-          <div className="text-[10px] text-emerald-400/90 mt-2 font-mono">
-            SLA: Strictly &lt; 25ms
-          </div>
-        </div>
-
-        {/* Card 5: Open Triage Cases */}
-        <div className="banking-card p-5 rounded-2xl relative overflow-hidden">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>Pending Triage</span>
-            <AlertTriangle className="w-4 h-4 text-purple-400" />
-          </div>
-          <div className="text-2xl font-extrabold text-purple-400 mt-3 font-mono">
-            {stats.active_incidents_open}
-          </div>
-          <div
-            onClick={() => setView('audit')}
-            className="text-[10px] text-blue-400 hover:underline cursor-pointer mt-2 flex items-center gap-1"
-          >
-            Review in Audit Console <ArrowUpRight className="w-3 h-3" />
-          </div>
-        </div>
-      </div>
 
       {/* Charts Section: 24h Trajectory & Entity Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

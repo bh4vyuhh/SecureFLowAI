@@ -24,6 +24,7 @@ import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any, Tuple
+from datetime import datetime, timezone
 
 import psutil
 from fastapi import FastAPI, Request, Response, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect, Depends, status
@@ -478,6 +479,9 @@ def get_soc_incidents(
             "risk_score": r.risk_score,
             "enforcement_action": r.enforcement_action,
             "payload_sha256": r.payload_sha256,
+            "prev_hash": r.prev_hash,
+            "audit_hash": r.audit_hash,
+            "compliance_tags": r.compliance_tags or [],
             "entity_counts": r.entity_counts,
             "status": r.status
         }

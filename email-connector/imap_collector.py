@@ -1,8 +1,13 @@
+import sys
+import os
 import imaplib
 import email
 import logging
 from typing import List, Dict, Any, Optional
-from parser import EmailParser
+
+# Ensure local email-connector package is on path for sibling imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from parser import EmailParser  # noqa: E402 (local parser.py, not built-in)
 
 logger = logging.getLogger("SecureFlow.ImapClient")
 

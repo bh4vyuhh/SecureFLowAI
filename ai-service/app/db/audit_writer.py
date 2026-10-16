@@ -101,11 +101,34 @@ class NonBlockingAuditWriter:
     async def _persist_batch(self, batch: List[Dict[str, Any]]):
         """Persists a list of queued audit events in a single database transaction."""
         def _write():
+            import hashlib
             db = SessionLocal()
             try:
+                # Retrieve the latest audit hash to maintain the tamperproof cryptographic chain
+                last_record = db.query(IncidentRecord).order_by(IncidentRecord.timestamp.desc()).first()
+                current_prev_hash = last_record.audit_hash if (last_record and last_record.audit_hash) else "GENESIS_BLOCK_0000000000000000000000000000000000000000000000000000"
+
                 for entry in batch:
                     if entry.get("type") == "incident":
                         inc = entry["incident"]
+
+                        # Determine regulatory compliance tags based on entities detected
+                        ent_counts = inc.get("entity_counts", {})
+                        tags = []
+                        if any(k in ent_counts for k in ["CREDIT_CARD", "CVV", "EXPIRATION_DATE"]):
+                            tags.append("PCI-DSS-v4.0-Req3")
+                        if any(k in ent_counts for k in ["US_SSN", "PASSPORT", "NATIONAL_ID", "AADHAAR", "PAN"]):
+                            tags.append("GDPR-Art32")
+                        if any(k in ent_counts for k in ["IBAN", "SWIFT_BIC", "FED_WIRE_ROUTING", "ACCOUNT_NUMBER"]):
+                            tags.append("RBI-DLP-2023")
+                        if not tags:
+                            tags = ["RBI-GENERAL-AUDIT"]
+
+                        # Cryptographic Tamperproof Hash Computation:
+                        # hash = SHA-256(prev_hash + id + payload_sha256 + risk_score + enforcement_action + user_id)
+                        hash_payload = f"{current_prev_hash}:{inc.get('id')}:{inc.get('payload_sha256', '')}:{inc.get('risk_score', 0)}:{inc.get('enforcement_action', 'ALLOW')}:{inc.get('user_id', 'anonymous')}"
+                        entry_audit_hash = hashlib.sha256(hash_payload.encode("utf-8")).hexdigest()
+
                         rec = IncidentRecord(
                             id=inc.get("id"),
                             client_id=inc.get("client_id", "unknown-client"),
@@ -117,11 +140,16 @@ class NonBlockingAuditWriter:
                             risk_score=inc.get("risk_score", 0),
                             enforcement_action=inc.get("enforcement_action", "ALLOW"),
                             payload_sha256=inc.get("payload_sha256", ""),
-                            entity_counts=inc.get("entity_counts", {}),
+                            prev_hash=current_prev_hash,
+                            audit_hash=entry_audit_hash,
+                            compliance_tags=tags,
+                            entity_counts=ent_counts,
                             telemetry=inc.get("telemetry", {}),
                             status=inc.get("status", "OPEN")
                         )
                         db.add(rec)
+                        # Advance hash chain
+                        current_prev_hash = entry_audit_hash
 
                         # Persist any vaulted tokens associated with this incident
                         for tok in entry.get("vaulted_tokens", []):
