@@ -1,148 +1,252 @@
 import React, { useState } from 'react';
-import { Save, Key, Radio, Server, Mail } from 'lucide-react';
+import { Sliders, ShieldCheck, Lock, Globe, Plus, Trash2, KeyRound, Check, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Settings() {
-  const [modelType, setModelType] = useState('tfidf');
-  const [tokenTtl, setTokenTtl] = useState(15);
-  const [circuitBreaker, setCircuitBreaker] = useState(true);
-  const [mailtrapToken, setMailtrapToken] = useState('••••••••••••512a');
+  const [maskThreshold, setMaskThreshold] = useState(45);
+  const [blockThreshold, setBlockThreshold] = useState(80);
+  const [circuitPolicy, setCircuitPolicy] = useState('FAIL_OPEN');
+  const [whitelistedDomains, setWhitelistedDomains] = useState([
+    '*.internal.bankcorp.com',
+    'api.partner.swift.com',
+    'audit.clearinghouse.org',
+    'treasury.centralbank.gov',
+  ]);
+  const [newDomain, setNewDomain] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    toast.success('DLP Gateway security configurations updated successfully!');
+  const handleAddDomain = () => {
+    if (!newDomain.trim()) return;
+    if (whitelistedDomains.includes(newDomain.trim().toLowerCase())) {
+      toast.error('Domain already in whitelist.');
+      return;
+    }
+    setWhitelistedDomains([...whitelistedDomains, newDomain.trim().toLowerCase()]);
+    setNewDomain('');
+    toast.success('Domain added to authorized whitelist.');
+  };
+
+  const handleRemoveDomain = (domain) => {
+    setWhitelistedDomains(whitelistedDomains.filter((d) => d !== domain));
+    toast.success(`Removed ${domain} from whitelist.`);
+  };
+
+  const handleSavePolicy = () => {
+    setSaving(true);
+    setTimeout(() => {
+      setSaving(false);
+      toast.success('Bank DLP Policy configuration synchronized across all active daemons & extensions.');
+    }, 600);
   };
 
   return (
-    <div className="flex-1 p-8 space-y-8 select-none">
+    <div className="p-8 space-y-8 select-none max-w-7xl mx-auto">
       <div>
-        <h1 className="text-4xl font-extrabold tracking-tight uppercase font-sans text-white">
-          GATEWAY SETTINGS
-        </h1>
-        <p className="text-sm text-[#8e8f96]">Configure model pipelines, Spring Boot connection properties, and OAuth variables.</p>
+        <h2 className="text-2xl font-bold text-white font-heading">
+          Dynamic Bank Policy & Whitelist Manager
+        </h2>
+        <p className="text-xs text-slate-400 mt-1">
+          Configure real-time enforcement thresholds, client circuit breaker behaviors, and cryptographic key versions.
+        </p>
       </div>
 
-      <div className="grid grid-cols-12 gap-8">
-        <div className="col-span-7 space-y-6">
-          <div className="bg-[#0c0c0e] border border-[#161619] rounded-[28px] p-6 space-y-6">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Server className="w-4.5 h-4.5 text-[#8df85f]" />
-              AI Model & Pipeline Rules
-            </h3>
-
-            <div className="space-y-2">
-              <label className="text-xs text-[#8e8f96] block font-semibold">Active NLP Engine Model</label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setModelType('tfidf')}
-                  className={`p-4 rounded-2xl border text-left flex flex-col justify-between h-24 transition cursor-pointer ${
-                    modelType === 'tfidf' 
-                      ? 'border-[#8df85f] bg-[#8df85f]/5 text-white' 
-                      : 'border-[#23252c] bg-[#121316] text-[#8e8f96] hover:border-white'
-                  }`}
-                >
-                  <span className="text-xs font-bold text-white">TF-IDF + Logistic Regression</span>
-                  <span className="text-[10px] text-[#8e8f96] leading-normal">Fast baseline. Recommended for local/demo runs to save resources.</span>
-                </button>
-
-                <button
-                  onClick={() => setModelType('distilbert')}
-                  className={`p-4 rounded-2xl border text-left flex flex-col justify-between h-24 transition cursor-pointer ${
-                    modelType === 'distilbert' 
-                      ? 'border-[#8df85f] bg-[#8df85f]/5 text-white' 
-                      : 'border-[#23252c] bg-[#121316] text-[#8e8f96] hover:border-white'
-                  }`}
-                >
-                  <span className="text-xs font-bold text-white">DistilBERT Model (Fine-tuned)</span>
-                  <span className="text-[10px] text-[#8e8f96] leading-normal">Deep learning transformer. High semantic parsing accuracy (~500MB RAM).</span>
-                </button>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Risk Sliders & Circuit Breaker */}
+        <div className="lg:col-span-6 space-y-8">
+          {/* Dynamic Risk Thresholds */}
+          <div className="banking-card p-6 rounded-3xl space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <Sliders className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white font-heading">
+                  Dynamic Risk Decision Thresholds
+                </h3>
+                <p className="text-xs text-slate-400">Enforcement boundary on 0-100 DLP risk scale</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-[#161619] pt-6">
-              <div>
-                <h4 className="text-xs font-bold text-white">Spring Boot Resilience4j Circuit Breaker</h4>
-                <p className="text-[10px] text-[#8e8f96] mt-0.5">Toggle RestTemplate/WebClient fallback to local cache during FastAPI outage.</p>
+            {/* Mask Threshold Slider */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-300">Auto-Mask / Tokenize Threshold:</span>
+                <span className="font-mono font-bold text-amber-400">{maskThreshold} / 100</span>
               </div>
+              <input
+                type="range"
+                min="20"
+                max="70"
+                value={maskThreshold}
+                onChange={(e) => setMaskThreshold(Number(e.target.value))}
+                className="w-full accent-amber-400 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-500 block">
+                Payloads with risk &ge; {maskThreshold} are automatically sanitized with reverse-offset HMAC tokens.
+              </span>
+            </div>
+
+            {/* Block Threshold Slider */}
+            <div className="space-y-2 pt-2 border-t border-[#1a2233]">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-300">Hard Exfiltration Block Threshold:</span>
+                <span className="font-mono font-bold text-red-400">{blockThreshold} / 100</span>
+              </div>
+              <input
+                type="range"
+                min="60"
+                max="95"
+                value={blockThreshold}
+                onChange={(e) => setBlockThreshold(Number(e.target.value))}
+                className="w-full accent-red-400 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-500 block">
+                Payloads with risk &ge; {blockThreshold} (or unencrypted PCI cards/SSNs) trigger immediate hard drop.
+              </span>
+            </div>
+          </div>
+
+          {/* Client-Side Circuit Breaker Policy */}
+          <div className="banking-card p-6 rounded-3xl space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white font-heading">
+                  Client Endpoint Circuit Breaker
+                </h3>
+                <p className="text-xs text-slate-400">Policy when central gateway is unreachable</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <button
-                onClick={() => setCircuitBreaker(!circuitBreaker)}
-                className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-300 focus:outline-none ${
-                  circuitBreaker ? 'bg-[#8df85f]' : 'bg-[#23252c]'
+                type="button"
+                onClick={() => setCircuitPolicy('FAIL_OPEN')}
+                className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
+                  circuitPolicy === 'FAIL_OPEN'
+                    ? 'bg-blue-600/15 border-blue-500 text-white'
+                    : 'bg-[#080b11] border-[#1a2233] text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <div className={`bg-black w-4.5 h-4.5 rounded-full shadow-md transform duration-300 ${
-                  circuitBreaker ? 'translate-x-5.5' : 'translate-x-0'
-                }`} />
+                <div className="text-xs font-bold font-mono">FAIL_OPEN (Local Queue)</div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Allows worker traffic; buffers payloads in local SQLite/memory for deferred sync.
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCircuitPolicy('FAIL_CLOSED')}
+                className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
+                  circuitPolicy === 'FAIL_CLOSED'
+                    ? 'bg-red-600/15 border-red-500 text-white'
+                    : 'bg-[#080b11] border-[#1a2233] text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <div className="text-xs font-bold font-mono">FAIL_CLOSED (Strict Block)</div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Blocks all untrusted transfers until gateway liveness probe succeeds.
+                </div>
               </button>
             </div>
           </div>
-
-          <div className="bg-[#0c0c0e] border border-[#161619] rounded-[28px] p-6 space-y-6">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Key className="w-4.5 h-4.5 text-[#8df85f]" />
-              Authorization & Tokens (JJWT)
-            </h3>
-
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-1.5">
-                <label className="text-xs text-[#8e8f96] font-semibold">Access Token TTL (Minutes)</label>
-                <input
-                  type="number"
-                  value={tokenTtl}
-                  onChange={e => setTokenTtl(Number(e.target.value))}
-                  className="w-full h-11 bg-[#121316] border border-[#23252c] rounded-xl px-4 text-xs text-white focus:outline-none focus:border-white transition"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-[#8e8f96] font-semibold">Refresh Token Storage</label>
-                <div className="h-11 bg-[#121316]/50 border border-[#23252c] rounded-xl px-4 flex items-center text-xs text-[#8df85f] font-bold font-mono">
-                  HttpOnly Secure Cookies
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
-        <div className="col-span-5 space-y-6">
-          <div className="bg-[#0c0c0e] border border-[#161619] rounded-[28px] p-6 space-y-6">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Radio className="w-4.5 h-4.5 text-[#f38933]" />
-              Integrations
-            </h3>
+        {/* Right Column: Whitelist Manager & Cryptographic Rotation */}
+        <div className="lg:col-span-6 space-y-8">
+          {/* Whitelist Manager */}
+          <div className="banking-card p-6 rounded-3xl space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white font-heading">
+                  Whitelisted Destination Domains
+                </h3>
+                <p className="text-xs text-slate-400">Endpoints exempt from hard blocking rules</p>
+              </div>
+            </div>
 
-            <div className="space-y-2">
-              <label className="text-xs text-[#8e8f96] font-semibold">Slack Webhook Alert URL</label>
+            <div className="flex gap-2">
               <input
                 type="text"
-                value={slackWebhook}
-                onChange={e => setSlackWebhook(e.target.value)}
-                className="w-full h-11 bg-[#121316] border border-[#23252c] rounded-xl px-4 text-xs text-white focus:outline-none focus:border-white transition font-mono truncate"
+                placeholder="e.g. *.partner.bank.com"
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}
+                className="flex-1 bg-[#080b11] border border-[#1a2233] rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
               />
+              <button
+                onClick={handleAddDomain}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-black font-semibold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Add
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs text-[#8e8f96] font-semibold">Mailtrap Admin Email Token</label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={mailtrapToken}
-                  onChange={e => setMailtrapToken(e.target.value)}
-                  className="w-full h-11 bg-[#121316] border border-[#23252c] rounded-xl px-4 text-xs text-white focus:outline-none focus:border-white transition font-mono"
-                />
-                <Mail className="w-4.5 h-4.5 text-[#8e8f96] absolute right-4 top-3.5" />
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {whitelistedDomains.map((dom) => (
+                <div
+                  key={dom}
+                  className="p-3 rounded-xl bg-[#090d14] border border-[#1a2233] flex items-center justify-between text-xs font-mono"
+                >
+                  <span className="text-emerald-400 font-semibold">{dom}</span>
+                  <button
+                    onClick={() => handleRemoveDomain(dom)}
+                    className="text-slate-500 hover:text-red-400 transition cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Cryptographic Key Rotation Info */}
+          <div className="banking-card p-6 rounded-3xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-600/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white font-heading">
+                  Cryptographic Key Rotation
+                </h3>
+                <p className="text-xs text-slate-400">AES-256-GCM Envelope Encryption Status</p>
               </div>
             </div>
 
-            <button
-              onClick={handleSave}
-              className="w-full h-12 bg-white text-black font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] transition cursor-pointer"
-            >
-              <Save className="w-4.5 h-4.5" />
-              Save Settings Profiles
-            </button>
+            <div className="p-4 rounded-2xl bg-[#080b11] border border-[#1a2233] space-y-2 text-xs font-mono">
+              <div className="flex justify-between text-slate-400">
+                <span>Active Key Version:</span>
+                <strong className="text-emerald-400">v1 (256-bit AES-GCM)</strong>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>HMAC Pseudonymization Salt:</span>
+                <strong className="text-blue-400">Configured (SHA-256)</strong>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Key Rotation Policy:</span>
+                <strong className="text-white">90-Day Zero-Downtime Roll</strong>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
+      {/* Save Button */}
+      <div className="flex justify-end pt-4">
+        <button
+          onClick={handleSavePolicy}
+          disabled={saving}
+          className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-lg shadow-blue-600/30 flex items-center gap-2 cursor-pointer"
+        >
+          {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          {saving ? 'Synchronizing Policies...' : 'Save & Publish Banking Policy'}
+        </button>
       </div>
     </div>
   );

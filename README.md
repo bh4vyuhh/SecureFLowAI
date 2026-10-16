@@ -87,8 +87,9 @@ SecureFlowAI/
 │   ├── Dockerfile               # Production Multi-Stage Container Spec
 │   └── requirements.txt         # Production Runtime Dependencies
 │
+├── admin/                       # React 19 / Vite Corporate Banking DLP Admin & SOC Console
+├── frontend/                    # Web Application Portal (React 19 / Vite)
 ├── backend/                     # Java 21 / Spring Boot 3.5 Enterprise Gateway & SOC API
-├── frontend/                    # React 19 / Vite Dark-Mode Admin & DLP Dashboard
 ├── desktop-agent/               # System Tray Daemon (Clipboard Monitor & File Watcher)
 ├── browser-extension/           # Chrome / Edge Manifest V3 In-Page Interception Agent
 ├── email-connector/             # Outbound / Inbound SMTP & IMAP Mailbox DLP Inspector
