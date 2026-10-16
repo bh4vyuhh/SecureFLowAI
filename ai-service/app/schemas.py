@@ -97,6 +97,7 @@ class ScanResponse(BaseModel):
     entities: List[EntitySpan] = Field(default_factory=list, description="Extracted non-overlapping entities")
     sanitized_text: str = Field(..., description="Sanitized text with masked PII")
     latency_ms: float = Field(..., description="Total pipeline latency in milliseconds")
+    incident_id: Optional[str] = Field(None, description="Persisted incident UUID if stored in audit database")
 
 
 # -----------------------------------------------------------------------------

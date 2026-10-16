@@ -1,0 +1,65 @@
+================================================================================
+SECUREFLOW AI — LIVE DEMONSTRATION TEST PAYLOADS
+================================================================================
+Copy and paste these payloads directly into the "Monitoring" (Live Classification)
+page or into the Browser Extension to demonstrate sub-25ms DLP detection.
+================================================================================
+
+[PAYLOAD 1: CRITICAL WIRE TRANSFER EXFILTRATION (BLOCK / RESTRICTED)]
+URGENT WIRE TRANSFER INSTRUCTION:
+Beneficiary: Apex Global Hedge Fund
+Account Number: 4532-8910-4411-9023
+ABA Routing: 021000021
+Amount: $4,250,000 USD
+SWIFT BIC: CHASUS33XXX
+Tax ID (SSN): 123-45-6789
+Confidential Client Master Agreement attached.
+
+Expected Result:
+- Risk Score: 100%
+- Classification Tier: RESTRICTED
+- Enforcement Action: BLOCK
+- Detected Entities: CREDIT_CARD, ABA_ROUTING, US_SSN, SWIFT_BIC
+- Sanitized Payload: Real-time HMAC cryptographic masking
+
+
+--------------------------------------------------------------------------------
+[PAYLOAD 2: TREASURY MEMO WITH EU IBAN (MASK / CONFIDENTIAL)]
+INTERNAL TREASURY DISBURSEMENT:
+Disbursing €1,200,000 for European liquidity settlement to Account GB82 WEST 1234 5698 7654 32.
+Authorized by: Treasury Division Operations Desk.
+
+Expected Result:
+- Risk Score: 50% - 60%
+- Classification Tier: CONFIDENTIAL
+- Enforcement Action: MASK / ENCRYPT
+- Detected Entities: IBAN
+- Sanitized Payload: Masked IBAN with reversible HMAC vault token
+
+
+--------------------------------------------------------------------------------
+[PAYLOAD 3: DEVELOPER API SECRET TOKEN LEAK (BLOCK / RESTRICTED)]
+DEPLOYMENT ENVIRONMENT CONFIGURATION:
+DATABASE_URL=postgres://prod_sec:pass@internal.bank.vault:5432/core
+STRIPE_SECRET_KEY=sk_test_51MzT9wJ8e4F9xK12AbCdEfGhIjKlMnOpQrStUvWxYz123456789
+JWT_PRIVATE_SECRET=bank_jwt_master_secret_key_99410294819024
+
+Expected Result:
+- Risk Score: 95% - 100%
+- Classification Tier: RESTRICTED
+- Enforcement Action: BLOCK
+- Detected Entities: API_KEY, PRIVATE_KEY
+
+
+--------------------------------------------------------------------------------
+[PAYLOAD 4: BENIGN INTERNAL MEMO (ALLOW / SAFE)]
+Good morning team, the quarterly risk and audit governance committee meeting
+has been rescheduled to Thursday at 14:00 in Conference Room 4B.
+Please review the attached project schedule before the briefing.
+
+Expected Result:
+- Risk Score: 0% - 10%
+- Classification Tier: SAFE
+- Enforcement Action: ALLOW
+- Detected Entities: None
+================================================================================

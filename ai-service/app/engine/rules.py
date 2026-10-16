@@ -144,8 +144,8 @@ SWIFT_REGEX = re.compile(
     r"\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b"
 )
 
-# Live API credentials and Private Key Headers
-STRIPE_KEY_REGEX = re.compile(r"\bsk_live_[0-9a-zA-Z]{24,}\b")
+# Live API credentials, Test tokens, and Private Key Headers
+STRIPE_KEY_REGEX = re.compile(r"\b(?:sk_live_|sk_test_)[0-9a-zA-Z]{24,}\b")
 GITHUB_TOKEN_REGEX = re.compile(r"\bghp_[0-9a-zA-Z]{36}\b")
 AWS_KEY_REGEX = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
 PEM_KEY_REGEX = re.compile(

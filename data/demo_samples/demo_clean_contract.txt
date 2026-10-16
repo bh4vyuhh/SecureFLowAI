@@ -1,0 +1,9 @@
+STANDARD NON-DISCLOSURE AND PROFESSIONAL SERVICES AGREEMENT
+
+This Agreement is entered into by and between Enterprise Banking Corporation and Global Technology Partners.
+Both parties agree to collaborate on infrastructure modernization initiatives.
+All public documentation, open standards, and architectural blueprints shared shall be handled according to standard organizational governance procedures.
+
+Authorized by: Operations Management Desk
+Date: October 2026
+Status: APPROVED FOR GENERAL DISTRIBUTION

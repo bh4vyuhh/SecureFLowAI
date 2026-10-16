@@ -1,239 +1,165 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Terminal, CheckCircle2, ShieldAlert, CornerDownLeft } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Terminal, Shield, RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
-import { chatAnswers } from '../utils/mockData';
 
-const QUICK_PROMPTS = [
-  'Explain high-risk incident inc-9842',
-  'Show all blocked exfiltrations in retail banking',
-  'Should we whitelist api.openai.com for treasury?',
-  'Audit summary for Q4 PCI-DSS compliance',
-];
-
-export default function Chatbot({ contextIncidentId = null }) {
+export default function Chatbot() {
   const [messages, setMessages] = useState([
     {
-      id: 1,
-      sender: 'bot',
-      text: (
-        "Welcome to the **SecureFlow AI Analyst Copilot**. I assist SOC analysts with real-time incident explainability, remediation recommendations, and natural-language queries over your non-repudiable audit logs.\n\n" +
-        "You can ask me to explain specific incident alerts, generate compliance queries, or advise on domain policies."
-      ),
-      suggested_action: null,
-      confidence: 1.0,
-      sql_query: null,
-    },
+      id: 'msg-init',
+      sender: 'copilot',
+      text: "SecureFlow AI Autonomous SOC Copilot active. Connected to local ONNX classifier telemetry and SQLite incident audit trail. Query any incident ID, hash, or security policy.",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const chatEndRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom();
   }, [messages, loading]);
 
-  const handleSend = async (queryText = input) => {
-    const q = queryText.trim();
-    if (!q || loading) return;
+  const handleSend = async (queryText) => {
+    const query = queryText || input;
+    if (!query.trim()) return;
 
-    const userMessage = { id: Date.now(), sender: 'user', text: q };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
+    const userMessage = {
+      id: `usr-${Date.now()}`,
+      sender: 'user',
+      text: query,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    if (!queryText) setInput('');
     setLoading(true);
 
     try {
-      const data = await api.chatCopilot(q, contextIncidentId);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: 'bot',
-          text: data.response,
-          suggested_action: data.suggested_action,
-          confidence: data.confidence,
-          sql_query: data.sql_query,
-        },
-      ]);
+      const response = await api.chatCopilot(query);
+      const copilotMessage = {
+        id: `ai-${Date.now()}`,
+        sender: 'copilot',
+        text: response.reply || response.answer || "Query processed by analyst copilot.",
+        citations: response.citations || [],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, copilotMessage]);
     } catch (err) {
-      console.warn('Backend copilot API call failed; generating local analyst response:', err);
-      // Realistic offline heuristic fallback
-      const lowerQ = q.toLowerCase();
-      let reply = '';
-      let action = null;
-      let sql = null;
-
-      if (lowerQ.includes('explain') || lowerQ.includes('inc-9842')) {
-        reply =
-          "**Incident Analysis (inc-9842):** User `alice.vance@bankcorp.com` in Investment Banking attempted to transfer a clipboard buffer destined for untrusted external host `pastebin.com`.\n\n" +
-          "**Entity Telemetry:** Two valid Luhn credit cards and one US Social Security Number were extracted with 100% confidence.\n\n" +
-          "**Regulatory Context:** This constitutes a severe PCI-DSS Requirement 3.4 exposure. The automated engine correctly enforced an immediate **BLOCK** action.";
-        action = 'BLOCK';
-      } else if (lowerQ.includes('show') || lowerQ.includes('query') || lowerQ.includes('blocked')) {
-        sql = "SELECT id, timestamp, user_id, department, destination_domain, risk_score, enforcement_action FROM dlp_incidents WHERE enforcement_action = 'BLOCK' AND department LIKE '%retail%' ORDER BY timestamp DESC LIMIT 50;";
-        reply = `I formulated the following structured audit query across historical records:\n\`\`\`sql\n${sql}\n\`\`\`\nQuery returned 26 verified incidents matching your criteria.`;
-      } else if (lowerQ.includes('whitelist') || lowerQ.includes('openai')) {
-        reply =
-          "**Remediation Recommendation:** Destination `api.openai.com` is an external multi-tenant cloud service. Treasury memos containing IBANs should **NOT** be whitelisted for raw plaintext transfer.\n\n" +
-          "**Recommended Policy:** Enforce automated **HMAC Tokenization (MASK)** so employees can interact with AI tools without exposing customer identities or banking routing coordinates.";
-        action = 'MASK';
-      } else {
-        reply =
-          "I analyzed your inquiry against current bank DLP telemetry. Zero anomalous exfiltrations detected outside authorized ranges. What specific incident ID or departmental policy would you like me to inspect?";
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: 'bot',
-          text: reply,
-          suggested_action: action,
-          confidence: 0.95,
-          sql_query: sql,
-        },
-      ]);
+      console.error('Copilot chat error:', err);
+      const errorMsg = {
+        id: `ai-err-${Date.now()}`,
+        sender: 'copilot',
+        text: `Error connecting to Copilot service: ${err.message || 'Service unavailable'}. Please verify FastAPI backend on port 8000.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col banking-card rounded-3xl w-full h-[calc(100vh-13rem)] overflow-hidden shadow-2xl border border-[#1e2638]">
+    <div className="bg-[#0c0c0e] border border-[#161619] rounded-[28px] p-6 flex flex-col h-[650px] shadow-2xl">
       {/* Copilot Header */}
-      <div className="bg-[#090d14] border-b border-[#1c2436] px-6 py-4 flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-[#161619] pb-4 mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
-            <Sparkles className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-black font-extrabold text-sm shadow-[0_0_12px_rgba(255,255,255,0.2)]">
+            SF
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white font-heading mb-0 flex items-center gap-2">
-              Autonomous SOC Analyst Copilot
-              <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                ICopilotAgent
-              </span>
-            </h2>
-            <div className="text-[11px] text-slate-400 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Model Provider: Enterprise Air-Gapped Heuristics & Local vLLM</span>
+            <div className="text-sm font-extrabold text-white uppercase tracking-tight flex items-center gap-2">
+              Autonomous Analyst Copilot
+              <span className="w-2 h-2 rounded-full bg-[#8df85f] inline-block" />
+            </div>
+            <div className="text-[11px] text-[#8e8f96] font-mono">
+              Tier 5 Conversational SOC Assistant
             </div>
           </div>
         </div>
 
-        <div className="text-xs text-slate-400 font-mono hidden sm:block">
-          Zero Cloud Egress Guaranteed
-        </div>
+        <button
+          onClick={() => setMessages([messages[0]])}
+          className="text-xs text-[#8e8f96] hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121316] border border-[#21232a] transition cursor-pointer"
+        >
+          <RefreshCw className="w-3 h-3" />
+          Clear Chat
+        </button>
       </div>
 
-      {/* Messages Feed */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      {/* Messages Scroll Area */}
+      <div className="flex-1 overflow-y-auto space-y-4 pr-2 select-text">
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex items-start gap-3 max-w-[85%] ${
-              msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''
-            }`}
+            className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div
-              className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                msg.sender === 'user'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                  : 'bg-[#151c2c] border border-[#232f48] text-purple-400'
-              }`}
-            >
-              {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-            </div>
+            {msg.sender === 'copilot' && (
+              <div className="w-8 h-8 rounded-full bg-[#121316] border border-[#21232a] flex items-center justify-center shrink-0 text-[#8df85f]">
+                <Bot className="w-4 h-4" />
+              </div>
+            )}
 
             <div
-              className={`p-4 rounded-2xl text-xs leading-relaxed space-y-3 ${
+              className={`max-w-[78%] rounded-2xl p-4 text-xs leading-relaxed ${
                 msg.sender === 'user'
-                  ? 'bg-blue-600 text-white rounded-tr-none font-medium shadow-md'
-                  : 'bg-[#0a0e17] text-slate-200 border border-[#1b2336] rounded-tl-none'
+                  ? 'bg-white text-black font-medium'
+                  : 'bg-[#121316] border border-[#21232a] text-slate-200'
               }`}
             >
-              <div className="whitespace-pre-wrap font-sans">{msg.text}</div>
-
-              {/* Suggested Action Pill */}
-              {msg.suggested_action && (
-                <div className="pt-2 flex items-center gap-2 border-t border-[#1b2336]">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                    Recommended Remediation:
-                  </span>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono ${
-                      msg.suggested_action === 'BLOCK'
-                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                        : msg.suggested_action === 'MASK'
-                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                        : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    }`}
-                  >
-                    {msg.suggested_action}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    (Confidence: {Math.round(msg.confidence * 100)}%)
-                  </span>
-                </div>
-              )}
-
-              {/* SQL Query Renderer */}
-              {msg.sql_query && (
-                <div className="mt-2 p-3 rounded-xl bg-[#06080d] border border-[#1e2638] space-y-1.5 font-mono text-[11px]">
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1 font-sans font-semibold">
-                    <Terminal className="w-3 h-3 text-cyan-400" /> Generated Audit Query:
-                  </div>
-                  <div className="text-cyan-300 break-words">{msg.sql_query}</div>
-                </div>
-              )}
+              <div className="whitespace-pre-wrap">{msg.text}</div>
+              <div className={`text-[10px] mt-2 font-mono ${msg.sender === 'user' ? 'text-black/60 text-right' : 'text-[#8e8f96]'}`}>
+                {msg.timestamp}
+              </div>
             </div>
+
+            {msg.sender === 'user' && (
+              <div className="w-8 h-8 rounded-full bg-[#121316] border border-[#21232a] flex items-center justify-center shrink-0 text-white font-bold text-xs">
+                SO
+              </div>
+            )}
           </div>
         ))}
 
         {loading && (
-          <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
-            <div className="w-8 h-8 rounded-xl bg-[#151c2c] border border-[#232f48] flex items-center justify-center text-purple-400 animate-pulse">
-              <Bot className="w-4 h-4" />
+          <div className="flex gap-3 items-center text-[#8e8f96] text-xs font-mono">
+            <div className="w-8 h-8 rounded-full bg-[#121316] border border-[#21232a] flex items-center justify-center text-[#8df85f]">
+              <RefreshCw className="w-4 h-4 animate-spin" />
             </div>
-            <span>Copilot analyzing telemetry...</span>
+            <span>Copilot analyzing real-time audit records...</span>
           </div>
         )}
 
-        <div ref={chatEndRef} />
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Prompts Ticker */}
-      <div className="px-6 py-2.5 bg-[#080b11] border-t border-[#171f30] flex items-center gap-2 overflow-x-auto text-xs">
-        <span className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0 font-bold">
-          Quick Prompts:
-        </span>
-        {QUICK_PROMPTS.map((prompt, i) => (
-          <button
-            key={i}
-            onClick={() => handleSend(prompt)}
-            className="px-3 py-1 rounded-xl bg-[#0f1420] border border-[#1e2638] text-slate-300 hover:text-white hover:border-blue-500 text-[11px] whitespace-nowrap transition cursor-pointer"
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
-
-      {/* Input Bar */}
-      <div className="p-4 bg-[#090d14] border-t border-[#1c2436] flex gap-3 items-center">
+      {/* Input area */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSend();
+        }}
+        className="flex gap-2 items-center pt-3 border-t border-[#161619]"
+      >
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Ask Analyst Copilot to explain alerts, generate SQL, or recommend policy..."
-          className="flex-1 bg-[#06080d] border border-[#1a2233] rounded-2xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-purple-500 transition"
+          placeholder="Ask Copilot about any incident ID, token, policy rule, or detection..."
+          className="flex-1 bg-[#121316] border border-[#21232a] rounded-xl px-4 py-3 text-xs text-white placeholder-[#8e8f96] focus:outline-none focus:border-white font-sans"
         />
         <button
-          onClick={() => handleSend()}
-          disabled={loading || !input.trim()}
-          className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white flex items-center justify-center hover:scale-105 disabled:opacity-50 transition shadow-lg shadow-purple-600/30 cursor-pointer"
+          type="submit"
+          disabled={!input.trim() || loading}
+          className="w-12 h-11 bg-white text-black rounded-xl flex items-center justify-center hover:scale-105 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
         >
           <Send className="w-4 h-4" />
         </button>
-      </div>
+      </form>
     </div>
   );
 }

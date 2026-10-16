@@ -40,9 +40,21 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
-    """Idempotently initializes all database tables."""
+    """Idempotently initializes all database tables and ensures schema migrations."""
     try:
         Base.metadata.create_all(bind=engine)
+        if DATABASE_URL.startswith("sqlite"):
+            with engine.connect() as conn:
+                from sqlalchemy import text
+                res = conn.execute(text("PRAGMA table_info(dlp_incidents)")).fetchall()
+                col_names = [r[1] for r in res]
+                if col_names and "prev_hash" not in col_names:
+                    conn.execute(text("ALTER TABLE dlp_incidents ADD COLUMN prev_hash VARCHAR(64) DEFAULT 'GENESIS_BLOCK_0000000000000000000000000000000000000000000000000000'"))
+                if col_names and "audit_hash" not in col_names:
+                    conn.execute(text("ALTER TABLE dlp_incidents ADD COLUMN audit_hash VARCHAR(64)"))
+                if col_names and "compliance_tags" not in col_names:
+                    conn.execute(text("ALTER TABLE dlp_incidents ADD COLUMN compliance_tags JSON"))
+                conn.commit()
         logger.info(f"[DB INIT] Database tables verified on '{DATABASE_URL.split('@')[-1]}'.")
     except Exception as e:
         logger.error(f"[DB INIT ERROR] Failed creating tables: {e}")

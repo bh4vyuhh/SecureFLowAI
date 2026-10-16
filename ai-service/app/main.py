@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 
 import psutil
 from fastapi import FastAPI, Request, Response, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect, Depends, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
@@ -136,6 +137,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# -----------------------------------------------------------------------------
+# Global Exception Handlers (Branch: feature/global-exception-handler)
+# -----------------------------------------------------------------------------
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Standardized RFC-7807 problem details for HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "ERROR",
+            "code": exc.status_code,
+            "detail": exc.detail,
+            "path": request.url.path
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Graceful global crash isolation ensuring zero confidential leakage."""
+    logger.error(f"[GLOBAL EXCEPTION] {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "FATAL",
+            "code": 500,
+            "detail": "An internal server error occurred during DLP processing.",
+            "error_type": exc.__class__.__name__,
+            "path": request.url.path
+        }
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -498,12 +532,21 @@ def get_soc_stats(db: Session = Depends(get_db)):
     allowed = db.query(IncidentRecord).filter(IncidentRecord.enforcement_action == "ALLOW").count()
     open_incidents = db.query(IncidentRecord).filter(IncidentRecord.status == "OPEN").count()
 
+    # Calculate real average latency from recorded telemetry
+    records = db.query(IncidentRecord).all()
+    latencies = [
+        r.telemetry.get("latency_ms")
+        for r in records
+        if isinstance(r.telemetry, dict) and "latency_ms" in r.telemetry and isinstance(r.telemetry["latency_ms"], (int, float))
+    ]
+    real_avg_latency = round(sum(latencies) / len(latencies), 1) if latencies else 0.0
+
     return SOCStatsResponse(
         total_scanned=total,
         blocked_count=blocked,
         masked_count=masked,
         allowed_count=allowed,
-        avg_latency_ms=12.4,  # sub-25ms benchmark
+        avg_latency_ms=real_avg_latency,
         active_incidents_open=open_incidents
     )
 
@@ -637,6 +680,7 @@ async def scan_legacy_endpoint(request: Request):
         if isinstance(chosen_mode, bytes):
             chosen_mode = chosen_mode.decode("utf-8")
     else:
+        filename = "inline_payload.txt"
         try:
             body = await request.json()
             scan_req = ScanRequest(**body)
@@ -670,13 +714,56 @@ async def scan_legacy_endpoint(request: Request):
     ]
 
     action_map = {"ALLOW": "ALLOW", "MASK": "ENCRYPT", "ENCRYPT": "ENCRYPT", "BLOCK": "BLOCK"}
+    enforcement_action = action_map.get(detection.action, "ALLOW")
+    payload_sha256 = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+    entity_counts = {r.entity_type: sum(1 for e in detection.entities if e.entity_type == r.entity_type) for r in detection.entities}
+    incident_id = str(uuid.uuid4())
+
+    incident_data = {
+        "id": incident_id,
+        "timestamp": datetime.now(timezone.utc),
+        "client_id": "web-file-scanner",
+        "user_id": "analyst@bank.com",
+        "department": "compliance",
+        "destination_domain": "internal.bank.vault",
+        "source_action": "file_upload",
+        "classification_tier": detection.tier,
+        "risk_score": detection.risk_score,
+        "enforcement_action": enforcement_action,
+        "payload_sha256": payload_sha256,
+        "entity_counts": entity_counts,
+        "telemetry": {
+            "file_name": filename,
+            "latency_ms": detection.latency_ms
+        },
+        "status": "OPEN" if enforcement_action == "BLOCK" else "RESOLVED"
+    }
+
+    try:
+        audit_writer = get_audit_writer()
+        await audit_writer.enqueue_incident(incident_data, [])
+    except Exception as e:
+        logger.warning(f"Failed to enqueue audit record for file scan {incident_id}: {e}")
+
+    if detection.risk_score > 0 or enforcement_action != "ALLOW":
+        dispatcher = get_event_dispatcher()
+        await dispatcher.broadcast_threat({
+            "type": "LIVE_THREAT_EVENT",
+            "incident": {
+                **incident_data,
+                "timestamp": incident_data["timestamp"].isoformat()
+            },
+            "timestamp": time.time()
+        })
+
     return ScanResponse(
         tier=detection.tier,
         risk_score=detection.risk_score,
-        action=action_map.get(detection.action, "ALLOW"),
+        action=enforcement_action,
         entities=entity_spans,
         sanitized_text=detection.sanitized_text,
-        latency_ms=detection.latency_ms
+        latency_ms=detection.latency_ms,
+        incident_id=incident_id
     )
 
 
