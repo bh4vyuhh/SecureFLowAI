@@ -73,12 +73,15 @@ class SecureFlowDesktopAgent:
             )
 
     def _contains_obvious_pii(self, text: str) -> bool:
-        """Lightweight pre-check for instant desktop notification."""
+        """Lightweight pre-check for instant desktop notification aligned with AI engine."""
         import re
         patterns = [
-            r"\b\d{3}-\d{2}-\d{4}\b",               # SSN
-            r"\b(?:\d[ -]*?){13,16}\b",             # Credit card
-            r"\b(?:api[_-]?key|secret|password)\b"  # API key or password
+            r"\b\d{3}[- ]?\d{2}[- ]?\d{4}\b",                                    # SSN
+            r"\b(?:\d[ -]*?){13,19}\b",                                          # Credit / Debit Cards
+            r"\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}(?:[A-Z0-9]?){0,16}\b",      # IBAN
+            r"\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b",                  # SWIFT / BIC
+            r"\b(?:sk_live_|ghp_|AKIA|(?:api[_-]?key|secret|password))\b",       # API keys / credentials
+            r"-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----"      # Private Keys
         ]
         return any(re.search(pat, text, re.IGNORECASE) for pat in patterns)
 

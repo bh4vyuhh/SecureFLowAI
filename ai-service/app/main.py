@@ -638,11 +638,64 @@ async def ingest_event_endpoint(event: IngestEventRequest):
     flags = list({r.entity_type for r in detection.entities})
 
     action_map = {"ALLOW": "ALLOW", "MASK": "ENCRYPT", "ENCRYPT": "ENCRYPT", "BLOCK": "BLOCK"}
+    enforcement_action = action_map.get(detection.action, "ALLOW")
+    payload_sha256 = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+    entity_counts = {flag: sum(1 for e in detection.entities if e.entity_type == flag) for flag in flags}
+
+    # Extract source details from capture layer metadata
+    meta = event.metadata or {}
+    destination_domain = meta.get("hostname") or meta.get("url") or meta.get("recipients") or meta.get("target") or "endpoint"
+    user_id = meta.get("sender") or meta.get("user") or f"{event.source.lower()}@internal.bank"
+    department = meta.get("department") or "SecOps & Operations"
+
+    incident_data = {
+        "id": event.eventId,
+        "timestamp": datetime.now(timezone.utc),
+        "client_id": event.source,
+        "user_id": user_id,
+        "department": department,
+        "destination_domain": str(destination_domain),
+        "source_action": event.eventType.lower() if event.eventType else "data_transfer",
+        "classification_tier": detection.tier,
+        "risk_score": detection.risk_score,
+        "enforcement_action": enforcement_action,
+        "payload_sha256": payload_sha256,
+        "entity_counts": entity_counts,
+        "telemetry": {
+            "source": event.source,
+            "event_type": event.eventType,
+            "file_name": event.fileName,
+            "latency_ms": detection.latency_ms,
+            "flags": flags,
+            "metadata": meta
+        },
+        "status": "OPEN" if enforcement_action == "BLOCK" else "RESOLVED"
+    }
+
+    # Asynchronous audit queue persistence
+    try:
+        audit_writer = get_audit_writer()
+        await audit_writer.enqueue_incident(incident_data, [])
+    except Exception as e:
+        logger.warning(f"Failed to enqueue audit record for event {event.eventId}: {e}")
+
+    # Broadcast live threat event to frontend WebSocket subscribers
+    if detection.risk_score > 0 or enforcement_action != "ALLOW":
+        dispatcher = get_event_dispatcher()
+        await dispatcher.broadcast_threat({
+            "type": "LIVE_THREAT_EVENT",
+            "incident": {
+                **incident_data,
+                "timestamp": incident_data["timestamp"].isoformat()
+            },
+            "timestamp": time.time()
+        })
+
     return IngestEventResponse(
         eventId=event.eventId,
         status="PROCESSED",
         riskScore=detection.risk_score,
-        actionTaken=action_map.get(detection.action, "ALLOW"),
+        actionTaken=enforcement_action,
         tier=detection.tier,
         sanitizedContent=detection.sanitized_text,
         flags=flags,

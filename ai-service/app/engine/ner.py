@@ -13,7 +13,11 @@ Extracts:
 
 import logging
 from typing import List, Dict, Any, Optional
-import spacy
+
+try:
+    import spacy
+except ImportError:
+    spacy = None
 
 logger = logging.getLogger("SecureFlowAI.NER")
 
@@ -26,6 +30,10 @@ def get_spacy_nlp():
     global _nlp
     if _nlp is not None:
         return _nlp
+
+    if spacy is None:
+        logger.warning("[NER INIT] spaCy not installed; falling back to rule-based NER extractor.")
+        return None
 
     model_name = "en_core_web_sm"
     try:
@@ -40,7 +48,10 @@ def get_spacy_nlp():
             logger.info(f"[NER INIT] Successfully downloaded and loaded '{model_name}'")
         except Exception as dl_err:
             logger.error(f"Could not load or download spaCy model: {dl_err}. Falling back to blank pipeline.")
-            _nlp = spacy.blank("en")
+            try:
+                _nlp = spacy.blank("en")
+            except Exception:
+                _nlp = None
 
     return _nlp
 
@@ -55,6 +66,8 @@ def extract_ner_entities(text: str) -> List[Dict[str, Any]]:
         return []
 
     nlp = get_spacy_nlp()
+    if nlp is None:
+        return []
     doc = nlp(text)
 
     allowed_labels = {

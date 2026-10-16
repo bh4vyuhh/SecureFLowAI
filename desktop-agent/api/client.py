@@ -34,7 +34,7 @@ class GatewayClient:
                 self.endpoint_url,
                 json=event_payload,
                 headers=headers,
-                timeout=3.0
+                timeout=2.0
             )
             if response.status_code in (200, 201, 202):
                 logger.info(f"Event {event_payload.get('eventId')} ingested successfully.")
@@ -42,12 +42,23 @@ class GatewayClient:
                     return response.json()
                 except Exception:
                     return {"status": "success"}
+        except Exception:
+            # Fallback to direct AI Microservice if Spring Boot gateway port is not running
+            if "8000" not in self.endpoint_url:
+                try:
+                    fallback_url = "http://localhost:8000/api/v1/events/ingest"
+                    response = requests.post(fallback_url, json=event_payload, headers=headers, timeout=2.0)
+                    if response.status_code in (200, 201, 202):
+                        logger.info(f"Event {event_payload.get('eventId')} ingested via direct AI service fallback.")
+                        try:
+                            return response.json()
+                        except Exception:
+                            return {"status": "success"}
+                except Exception as ex2:
+                    logger.debug(f"Both gateway and AI service unreachable ({ex2}). Buffering event {event_payload.get('eventId')}.")
+                    self._buffer_event(event_payload)
             else:
-                logger.warning(f"Gateway returned {response.status_code} for event {event_payload.get('eventId')}. Buffering.")
                 self._buffer_event(event_payload)
-        except Exception as ex:
-            logger.debug(f"Gateway unreachable ({ex}). Buffering event {event_payload.get('eventId')} for later dispatch.")
-            self._buffer_event(event_payload)
         return None
 
     def _buffer_event(self, payload: Dict[str, Any]):

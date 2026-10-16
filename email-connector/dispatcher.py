@@ -49,16 +49,27 @@ class EmailGatewayDispatcher:
             headers["Authorization"] = f"Bearer {self.auth_token}"
 
         try:
-            resp = requests.post(self.gateway_url, json=event_payload, headers=headers, timeout=5.0)
+            resp = requests.post(self.gateway_url, json=event_payload, headers=headers, timeout=3.0)
             if resp.status_code in (200, 201, 202):
                 logger.info(f"Email {event_payload['eventId']} successfully ingested by Gateway.")
                 try:
                     return resp.json()
                 except Exception:
                     return {"status": "success"}
+        except Exception:
+            if "8000" not in self.gateway_url:
+                try:
+                    fallback_url = "http://localhost:8000/api/v1/events/ingest"
+                    resp = requests.post(fallback_url, json=event_payload, headers=headers, timeout=3.0)
+                    if resp.status_code in (200, 201, 202):
+                        logger.info(f"Email {event_payload['eventId']} successfully ingested via AI service fallback.")
+                        try:
+                            return resp.json()
+                        except Exception:
+                            return {"status": "success"}
+                except Exception as ex2:
+                    logger.info(f"Gateway and fallback offline ({ex2}); email event normalized successfully.")
+                    return {"status": "buffered_locally", "event": event_payload}
             else:
-                logger.warning(f"Gateway returned {resp.status_code} for email event.")
-        except Exception as e:
-            logger.info(f"Gateway currently offline ({e}); email event normalized successfully.")
-            return {"status": "buffered_locally", "event": event_payload}
+                return {"status": "buffered_locally", "event": event_payload}
         return None

@@ -1,30 +1,33 @@
-/**
- * SecureFlow AI - Content Script (Manifest V3)
- * Intercepts paste events on inputs, textareas, and contenteditable elements.
- * Evaluates sensitive patterns locally for immediate feedback and forwards
- * events to background service worker for DLP gateway ingestion.
- */
 
 (function () {
   console.log("%c[SecureFlow AI]%c DLP Browser Agent Initialized.", "color: #8df85f; font-weight: bold;", "color: inherit;");
 
-  // Regex patterns for instant in-browser detection
+
+  // Regex patterns aligned with AI Classification & Detection Engine
   const DLP_PATTERNS = {
     SSN: /\b\d{3}-\d{2}-\d{4}\b/,
-    CREDIT_CARD: /\b(?:\d[ -]*?){13,16}\b/,
-    API_KEY: /\b(?:key|secret|token|password)[a-zA-Z0-9_]{10,30}\b/i,
+    CREDIT_CARD: /\b(?:\d[ -]*?){13,19}\b/,
+    IBAN: /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}(?:[A-Z0-9]?){0,16}\b/i,
+    ABA_ROUTING: /\b\d{9}\b/,
+    SWIFT_BIC: /\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/i,
+    API_KEY: /\b(?:sk_live_[0-9a-zA-Z]{24,}|ghp_[0-9a-zA-Z]{36}|AKIA[0-9A-Z]{16}|(?:key|secret|token|password)[a-zA-Z0-9_]{10,40})\b/i,
+    PRIVATE_KEY: /-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----/i,
     EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
   };
 
   function detectSensitivePii(text) {
     const hits = [];
-    if (DLP_PATTERNS.SSN.test(text)) hits.push("SSN");
-    if (DLP_PATTERNS.CREDIT_CARD.test(text)) hits.push("Credit Card");
-    if (DLP_PATTERNS.API_KEY.test(text)) hits.push("API Key / Token");
+    if (DLP_PATTERNS.CREDIT_CARD.test(text)) hits.push("Credit Card (PCI-DSS)");
+    if (DLP_PATTERNS.SSN.test(text)) hits.push("US SSN");
+    if (DLP_PATTERNS.IBAN.test(text)) hits.push("IBAN Bank Account");
+    if (DLP_PATTERNS.SWIFT_BIC.test(text)) hits.push("SWIFT / BIC");
+    if (DLP_PATTERNS.ABA_ROUTING.test(text)) hits.push("ABA Routing Number");
+    if (DLP_PATTERNS.PRIVATE_KEY.test(text)) hits.push("Cryptographic Private Key");
+    if (DLP_PATTERNS.API_KEY.test(text)) hits.push("Live API Credential");
     return hits;
   }
 
-  // Intercept paste event at capture phase
+
   document.addEventListener("paste", function (event) {
     try {
       const clipboardData = event.clipboardData || window.clipboardData;

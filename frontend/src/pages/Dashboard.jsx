@@ -355,12 +355,22 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
 
           <div className="space-y-3 overflow-y-auto max-h-[220px] pr-2">
             {(liveAlerts.length > 0 ? liveAlerts : logs.slice(0, 4)).map((item, idx) => {
-              const isBlock = item.enforcement_action === 'BLOCK' || item.actionTaken === 'BLOCK';
-              const isMask = item.enforcement_action === 'MASK' || item.actionTaken === 'ENCRYPT';
+              const risk = item.risk_score !== undefined ? item.risk_score : (item.riskScore !== undefined ? item.riskScore : 85);
+              const isBlock = item.enforcement_action === 'BLOCK' || item.actionTaken === 'BLOCK' || risk >= 75;
+              const isMask = item.enforcement_action === 'MASK' || item.actionTaken === 'ENCRYPT' || (risk >= 45 && risk < 75);
+              const actionLabel = item.enforcement_action || item.actionTaken || (risk >= 75 ? 'BLOCK' : risk >= 45 ? 'ENCRYPT' : 'ALLOW');
+              const sourceLabel = item.client_id || item.source || item.source_action || 'AGENT';
+
               return (
                 <div
                   key={item.id || idx}
-                  className="p-3.5 rounded-2xl bg-[#090d14] border border-[#1a2233] flex items-center justify-between text-xs hover:border-slate-500 transition cursor-pointer"
+                  className={`p-3.5 rounded-2xl bg-[#090d14] border transition cursor-pointer flex items-center justify-between text-xs hover:border-slate-500 ${
+                    risk >= 75
+                      ? 'border-red-900/40 hover:border-red-500/60 bg-red-950/10'
+                      : risk >= 45
+                      ? 'border-amber-900/40 hover:border-amber-500/60 bg-amber-950/10'
+                      : 'border-[#1a2233] hover:border-emerald-500/50'
+                  }`}
                   onClick={() => setView('audit')}
                 >
                   <div className="flex items-center gap-3">
@@ -373,21 +383,28 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
                           : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                       }`}
                     >
-                      {item.enforcement_action || item.actionTaken || 'BLOCK'}
+                      {actionLabel}
                     </span>
                     <div>
-                      <div className="font-semibold text-slate-200">
-                        {item.user_id || 'employee@bankcorp.com'}
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-200">
+                          {item.user_id || 'employee@bankcorp.com'}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-[#1e2638] text-slate-400 border border-[#2a364f]">
+                          {sourceLabel}
+                        </span>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono">
-                        Target: {item.destination_domain || 'external endpoint'}
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        Target: {item.destination_domain || item.targetUrl || item.fileName || 'external endpoint'}
                       </div>
                     </div>
                   </div>
 
                   <div className="text-right">
-                    <div className="font-mono text-red-400 font-bold">
-                      Risk: {item.risk_score || item.riskScore || 90}/100
+                    <div className={`font-mono font-bold ${
+                      risk >= 75 ? 'text-red-400' : risk >= 45 ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>
+                      Risk: {risk}/100
                     </div>
                     <div className="text-[10px] text-slate-500 flex items-center gap-1 justify-end">
                       <Clock className="w-3 h-3" /> Just now

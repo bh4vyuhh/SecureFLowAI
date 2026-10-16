@@ -50,15 +50,22 @@ export default function App() {
           setLiveAlerts((prev) => [inc, ...prev.slice(0, 19)]);
           setLogs((prev) => [inc, ...prev]);
 
-          if (inc.enforcement_action === 'BLOCK') {
+          const sourceLabel = inc.client_id || inc.source || 'Capture Agent';
+          const risk = inc.risk_score || 0;
+          if (inc.enforcement_action === 'BLOCK' || risk >= 75) {
             toast.error(
-              `Live Exfiltration Blocked: User ${inc.user_id} (${inc.department}) -> ${inc.destination_domain}`,
-              { duration: 4000 }
+              `[${sourceLabel}] High Risk Detected (${risk}/100) -> ${inc.destination_domain || 'Exfiltration Attempt'}`,
+              { duration: 5000 }
             );
-          } else if (inc.enforcement_action === 'MASK') {
+          } else if (inc.enforcement_action === 'MASK' || inc.enforcement_action === 'ENCRYPT' || risk >= 45) {
             toast(
-              `Live Credential Masked: ${inc.destination_domain}`,
-              { icon: '🔒', duration: 3000 }
+              `[${sourceLabel}] Sensitive Data Masked (${risk}/100) -> ${inc.destination_domain || 'Internal'}`,
+              { icon: '🔒', duration: 4000 }
+            );
+          } else {
+            toast.success(
+              `[${sourceLabel}] Benign Event Verified -> ${inc.destination_domain || 'Safe'}`,
+              { duration: 3000 }
             );
           }
         }
