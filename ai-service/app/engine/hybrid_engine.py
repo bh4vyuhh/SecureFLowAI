@@ -71,28 +71,34 @@ class HybridDLPEngine(IDLPEngine):
         sanitized, redacted_records = redact_text(normalized_text, resolved_ents, mode=mode)
 
         # 7. Unified Risk Decision
+        critical_types = {"CREDIT_CARD", "PRIVATE_KEY", "API_KEY", "US_SSN"}
+        has_critical = any(e["entity_type"] in critical_types for e in resolved_ents)
+        financial_identifiers = {"IBAN", "ABA_ROUTING", "SWIFT_BIC"}
+        has_financial = any(e["entity_type"] in financial_identifiers for e in resolved_ents)
+
         if tier == "RESTRICTED":
-            base_score = 75
+            base_score = 75 if (has_critical or has_financial) else 30
         elif tier == "CONFIDENTIAL":
             base_score = 50
         else:
             base_score = 10
 
         weights = {
-            "CREDIT_CARD": 30, "PRIVATE_KEY": 35, "API_KEY": 25, "US_SSN": 25,
-            "IBAN": 15, "ABA_ROUTING": 15, "SWIFT_BIC": 10,
-            "PERSON": 5, "ORG": 5, "LOCATION": 5
+            "CREDIT_CARD": 35, "PRIVATE_KEY": 40, "API_KEY": 30, "US_SSN": 30,
+            "IBAN": 25, "ABA_ROUTING": 20, "SWIFT_BIC": 15,
+            "PERSON": 3, "ORG": 3, "LOCATION": 2
         }
-        entity_impact = sum(weights.get(e["entity_type"], 5) for e in resolved_ents)
+        entity_impact = sum(weights.get(e["entity_type"], 2) for e in resolved_ents)
         total_risk = min(100, base_score + entity_impact)
 
-        critical_types = {"CREDIT_CARD", "PRIVATE_KEY", "API_KEY", "US_SSN"}
-        has_critical = any(e["entity_type"] in critical_types for e in resolved_ents)
-
-        if total_risk >= 80 or has_critical or tier == "RESTRICTED":
+        # Policy Enforcement Decision:
+        # BLOCK: If critical secrets exist (Cards, Keys, SSN) OR total risk >= 80
+        # ENCRYPT / MASK: If total risk >= 45 OR financial identifiers detected
+        # ALLOW: Normal documents without sensitive leaks
+        if has_critical or total_risk >= 80:
             action = "BLOCK"
-            total_risk = max(total_risk, 80)
-        elif total_risk >= 45 or tier == "CONFIDENTIAL":
+            total_risk = max(total_risk, 85)
+        elif total_risk >= 45 or has_financial or tier == "CONFIDENTIAL":
             action = "ENCRYPT"
         else:
             action = "ALLOW"

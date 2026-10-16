@@ -116,6 +116,69 @@ def validate_ssn(ssn_str: str) -> bool:
 
 
 # -----------------------------------------------------------------------------
+# Standard ISO 3166-1 alpha-2 banking country codes for SWIFT / BIC validation
+# -----------------------------------------------------------------------------
+ISO_3166_COUNTRIES = {
+    "AD", "AE", "AF", "AG", "AL", "AM", "AO", "AR", "AT", "AU", "AZ", "BA", "BB", "BD", "BE", "BF",
+    "BG", "BH", "BI", "BJ", "BN", "BO", "BR", "BS", "BT", "BW", "BY", "BZ", "CA", "CD", "CF", "CG",
+    "CH", "CI", "CL", "CM", "CN", "CO", "CR", "CU", "CV", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO",
+    "DZ", "EC", "EE", "EG", "ES", "ET", "FI", "FJ", "FR", "GA", "GB", "GD", "GE", "GH", "GM", "GN",
+    "GQ", "GR", "GT", "GW", "GY", "HK", "HN", "HR", "HT", "HU", "ID", "IE", "IL", "IN", "IQ", "IR",
+    "IS", "IT", "JM", "JO", "JP", "KE", "KG", "KH", "KM", "KN", "KR", "KW", "KZ", "LA", "LB", "LC",
+    "LI", "LK", "LR", "LS", "LT", "LU", "LV", "LY", "MA", "MC", "MD", "ME", "MG", "MK", "ML", "MM",
+    "MN", "MO", "MR", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NE", "NG", "NI", "NL", "NO",
+    "NP", "NR", "NZ", "OM", "PA", "PE", "PG", "PH", "PK", "PL", "PT", "PY", "QA", "RO", "RS", "RU",
+    "RW", "SA", "SB", "SC", "SD", "SE", "SG", "SI", "SK", "SL", "SM", "SN", "SO", "SR", "SS", "ST",
+    "SV", "SY", "SZ", "TD", "TG", "TH", "TJ", "TL", "TM", "TN", "TO", "TR", "TT", "TV", "TW", "TZ",
+    "UA", "UG", "US", "UY", "UZ", "VA", "VC", "VE", "VN", "VU", "WS", "YE", "ZA", "ZM", "ZW"
+}
+
+# Common uppercase English words in business/billing documents that match 8/11 letter patterns
+SWIFT_FALSE_POSITIVE_WORDS = {
+    "STANDARD", "SERVICES", "CUSTOMER", "ACCOUNTS", "RECEIPTS", "INVOICES", "APPROVAL",
+    "DELIVERY", "DISPATCH", "BUSINESS", "OVERVIEW", "SCHEDULE", "DOCUMENT", "DIRECTOR",
+    "INTERNAL", "EXTERNAL", "OFFICIAL", "PURCHASE", "SETTINGS", "SECURITY", "DATABASE",
+    "HARDWARE", "SOFTWARE", "PLATFORM", "SOLUTION", "WORKFLOW", "REGISTER", "RENDERED",
+    "CONTRACT", "FEEDBACK", "CHARGES", "ACTIVITY", "PRODUCTS", "PRINTING", "INTERNET",
+    "EXCHANGE", "TELEPHONE", "CORPORATE", "OPERATION", "STATEMENT", "IMPORTANT", "AGREEMENT"
+}
+
+
+ENGLISH_WORD_SUFFIXES = (
+    "CITY", "TION", "MENT", "ENCE", "ANCE", "SHIP", "TURE", "INGS", "ING",
+    "ABLE", "IBLE", "NESS", "CATE", "WARD", "LESS", "FULL", "TAKING", "MONTHLY",
+    "PAYMENT", "PORTING", "STANDING"
+)
+
+
+def validate_swift_bic(swift_str: str) -> bool:
+    """
+    Validates an ISO 9362 Business Identifier Code (BIC / SWIFT):
+      - Must be 8 or 11 characters
+      - Characters 0-3: 4-letter Institution Code (A-Z)
+      - Characters 4-5: 2-letter ISO 3166-1 alpha-2 Country Code (e.g. US, DE, IN, GB)
+      - Characters 6-7: 2-character Location Code (alphanumeric)
+      - Optional characters 8-10: 3-character Branch Code (alphanumeric)
+      - Excludes common business dictionary words and English suffixes
+    """
+    val = swift_str.strip().upper()
+    if len(val) not in (8, 11):
+        return False
+    if val in SWIFT_FALSE_POSITIVE_WORDS:
+        return False
+    if val.endswith(ENGLISH_WORD_SUFFIXES):
+        return False
+    if not val[:4].isalpha():
+        return False
+    country_code = val[4:6]
+    if country_code not in ISO_3166_COUNTRIES:
+        return False
+    if not val[6:].isalnum():
+        return False
+    return True
+
+
+# -----------------------------------------------------------------------------
 # 2. Regex Patterns
 # -----------------------------------------------------------------------------
 # Credit/Debit Cards (13 to 19 digits with spaces/dashes)
@@ -245,15 +308,19 @@ def extract_rule_entities(text: str) -> List[Dict[str, Any]]:
                 "confidence": 1.0
             })
 
-    # 7. SWIFT / BIC codes
+    # 7. SWIFT / BIC codes (Requires valid structure and explicit swift/bic label or unambiguous banking location digits)
     for m in SWIFT_REGEX.finditer(text):
         val = m.group(0)
-        # Basic check to avoid plain uppercase words like "DEPARTMENT"
-        if val.isupper() and (len(val) == 8 or len(val) == 11):
+        start, end = m.start(), m.end()
+        ctx_window = text[max(0, start - 50): min(len(text), end + 50)].lower()
+        has_explicit_swift_label = any(kw in ctx_window for kw in ["swift", "bic"])
+        has_banking_structure = (val.endswith("XXX") or any(ch.isdigit() for ch in val[6:]))
+
+        if validate_swift_bic(val) and (has_explicit_swift_label or has_banking_structure):
             entities.append({
                 "entity_type": "SWIFT_BIC",
-                "start": m.start(),
-                "end": m.end(),
+                "start": start,
+                "end": end,
                 "value": val,
                 "confidence": 0.95
             })
