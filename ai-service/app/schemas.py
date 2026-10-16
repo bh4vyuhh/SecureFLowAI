@@ -136,3 +136,74 @@ class IngestEventResponse(BaseModel):
     entityCount: int = Field(0, description="Total count of non-overlapping entities found")
     latencyMs: float = Field(..., description="Processing time in milliseconds")
 
+
+# -----------------------------------------------------------------------------
+# 6. Immutable Client-to-Gateway Ingestion Contract (Tier 1 & Tier 2)
+# -----------------------------------------------------------------------------
+class DLPScanRequest(BaseModel):
+    client_id: str = Field("desktop-daemon-01", description="Unique identifier of client endpoint")
+    user_id: str = Field("employee@bank.com", description="User or machine account initiating transfer")
+    department: Optional[str] = Field("retail_banking", description="User banking department")
+    destination_domain: str = Field("api.openai.com", description="Target destination or URL")
+    source_action: Literal["clipboard", "file_upload", "prompt_injection", "email", "browser_paste"] = Field(
+        "clipboard", description="Context of intercepted data action"
+    )
+    text: Optional[str] = Field(None, description="Raw plaintext intercepted")
+    file_bytes_b64: Optional[str] = Field(None, description="Base64 encoded file payload if file upload")
+    file_name: Optional[str] = Field(None, description="Original filename (e.g. audit.xlsx, scan.pdf)")
+    mode: Literal["mask", "tokenize"] = Field("mask", description="Redaction mode: 'mask' or 'tokenize'")
+
+
+class DLPScanResponse(BaseModel):
+    request_id: str = Field(..., description="Unique transaction/incident ID")
+    classification_tier: Literal["SAFE", "CONFIDENTIAL", "RESTRICTED"] = Field(..., description="Classified risk tier")
+    risk_score: int = Field(..., ge=0, le=100, description="0-100 DLP risk score")
+    enforcement_action: Literal["ALLOW", "MASK", "BLOCK"] = Field(..., description="Enforced action according to bank policy")
+    sanitized_text: Optional[str] = Field(None, description="Safely masked or tokenized payload")
+    detected_entities: List[EntitySpan] = Field(default_factory=list, description="Non-overlapping detected sensitive entities")
+    payload_sha256: str = Field(..., description="Zero-leak SHA-256 fingerprint of original payload")
+    latency_ms: float = Field(..., description="Total synchronous processing latency")
+
+
+# -----------------------------------------------------------------------------
+# 7. Cryptographic Detokenization Contract (Tier 4)
+# -----------------------------------------------------------------------------
+class DetokenizeRequest(BaseModel):
+    token: str = Field(..., description="HMAC token (e.g. TOK_CREDIT_CARD_...) to resolve")
+    authorization_key: str = Field(..., description="Authorized SOC analyst key for detokenization")
+
+
+class DetokenizeResponse(BaseModel):
+    token: str = Field(..., description="Queried token")
+    plaintext_value: str = Field(..., description="Recovered original plaintext value")
+    entity_type: str = Field(..., description="Entity classification")
+    key_version: str = Field("v1", description="Cryptographic key version used")
+
+
+# -----------------------------------------------------------------------------
+# 8. SOC & Analyst Copilot Contracts (Tier 5)
+# -----------------------------------------------------------------------------
+class CopilotChatRequest(BaseModel):
+    query: str = Field(..., min_length=1, description="Natural language prompt or query from SOC analyst")
+    context_incident_id: Optional[str] = Field(None, description="Optional incident ID for focused investigation")
+
+
+class CopilotChatResponse(BaseModel):
+    response: str = Field(..., description="Plain-English explanation or response")
+    suggested_action: Optional[Literal["ALLOW", "MASK", "BLOCK", "WHITELIST_DOMAIN", "FALSE_POSITIVE"]] = Field(
+        None, description="Recommended remediation action"
+    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence in recommendation")
+    sql_query: Optional[str] = Field(None, description="Structured SQL query generated for natural language inquiry")
+    matched_incidents_count: Optional[int] = Field(None, description="Count of historical incidents analyzed")
+
+
+class SOCStatsResponse(BaseModel):
+    total_scanned: int = Field(..., description="Total payloads inspected")
+    blocked_count: int = Field(..., description="Total high-risk transfers blocked")
+    masked_count: int = Field(..., description="Total transfers masked/tokenized")
+    allowed_count: int = Field(..., description="Total benign transfers allowed")
+    avg_latency_ms: float = Field(..., description="Rolling average processing latency in milliseconds")
+    active_incidents_open: int = Field(..., description="Total open incidents awaiting SOC review")
+
+

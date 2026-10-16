@@ -23,7 +23,10 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.log
+*.db
+*.sqlite
 ~$*
+
 
 
 # AI Service Datasets & Heavy Artifacts (Reproducible via ai-service/data/scripts/)

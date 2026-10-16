@@ -168,10 +168,58 @@ def extract_from_csv(file_bytes: bytes) -> str:
     return truncate_word_limit(combined)
 
 
+def extract_from_zip(file_bytes: bytes, max_files: int = 20, max_total_bytes: int = 10 * 1024 * 1024) -> str:
+    """
+    Safely extracts text from files inside a ZIP archive.
+    Enforces strict zip-bomb and resource exhaustion guards:
+      - Max file count limit (default 20 files)
+      - Max total uncompressed size (default 10 MB)
+      - Recursively parses supported formats (.txt, .csv, .json, .docx, .xlsx, .pdf)
+    """
+    import zipfile
+
+    extracted_sections: List[str] = []
+    total_uncompressed = 0
+    file_count = 0
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes), "r") as zf:
+            infolist = zf.infolist()
+            for info in infolist:
+                # Skip directories and hidden system files
+                if info.is_dir() or info.filename.startswith("__MACOSX") or "/." in info.filename:
+                    continue
+
+                file_count += 1
+                if file_count > max_files:
+                    logger.warning(f"ZIP archive exceeded max file limit ({max_files}); stopping extraction.")
+                    break
+
+                total_uncompressed += info.file_size
+                if total_uncompressed > max_total_bytes:
+                    logger.warning(f"ZIP archive exceeded uncompressed size limit ({max_total_bytes} bytes); stopping extraction.")
+                    break
+
+                # Extract and parse content
+                try:
+                    inner_bytes = zf.read(info.filename)
+                    inner_text, _ = extract_file_content(inner_bytes, info.filename)
+                    if inner_text.strip():
+                        extracted_sections.append(f"--- File: {info.filename} ---\n{inner_text.strip()}")
+                except Exception as inner_err:
+                    logger.warning(f"Failed extracting nested file {info.filename} inside zip: {inner_err}")
+
+        combined = "\n\n".join(extracted_sections)
+        return truncate_word_limit(combined)
+    except Exception as e:
+        logger.error(f"ZIP extraction error: {e}")
+        return ""
+
+
 def extract_file_content(file_bytes: bytes, filename: str) -> Tuple[str, str]:
     """
     Dispatcher: Identifies format from extension and safely extracts text.
-    Supports digital documents, scanned PDFs, and raw images.
+    Supports digital documents, scanned PDFs, raw images, spreadsheets, and zip archives.
     Returns: (extracted_text, detected_extension)
     """
     ext = Path(filename).suffix.lower()
@@ -186,7 +234,10 @@ def extract_file_content(file_bytes: bytes, filename: str) -> Tuple[str, str]:
         return extract_from_xlsx(file_bytes), "xlsx"
     elif ext == ".csv":
         return extract_from_csv(file_bytes), "csv"
+    elif ext == ".zip":
+        return extract_from_zip(file_bytes), "zip"
     else:
         # Default plaintext / code / json decode
         decoded = file_bytes.decode("utf-8", errors="replace")
         return truncate_word_limit(decoded), "txt"
+
