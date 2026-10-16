@@ -509,6 +509,79 @@ def get_soc_stats(db: Session = Depends(get_db)):
 
 
 # -----------------------------------------------------------------------------
+# Tier 3: Dynamic Policy Configuration Endpoints (DLPPolicyRecord)
+# -----------------------------------------------------------------------------
+@app.get("/api/v1/policies", tags=["Policies"])
+def get_active_policy(db: Session = Depends(get_db)):
+    """Fetches the active bank DLP enforcement policy."""
+    policy = db.query(DLPPolicyRecord).filter(DLPPolicyRecord.is_active == True).first()
+    if not policy:
+        # Create default initial policy
+        policy = DLPPolicyRecord(
+            id="default-bank-policy",
+            name="Tier-1 Enterprise Bank DLP Baseline",
+            version=1,
+            action_threshold_mask=45,
+            action_threshold_block=80,
+            whitelisted_domains=[
+                "*.internal.bankcorp.com",
+                "api.partner.swift.com",
+                "audit.clearinghouse.org",
+                "treasury.centralbank.gov"
+            ],
+            is_active=True
+        )
+        db.add(policy)
+        db.commit()
+        db.refresh(policy)
+
+    return {
+        "id": policy.id,
+        "name": policy.name,
+        "version": policy.version,
+        "mask_threshold": policy.action_threshold_mask,
+        "block_threshold": policy.action_threshold_block,
+        "whitelisted_domains": policy.whitelisted_domains or [],
+        "is_active": policy.is_active,
+        "updated_at": policy.updated_at.isoformat() if policy.updated_at else None
+    }
+
+
+@app.post("/api/v1/policies", tags=["Policies"])
+def update_policy(payload: Dict[str, Any], db: Session = Depends(get_db)):
+    """Persists updated DLP thresholds, circuit breaker policy, and whitelisted domains."""
+    policy = db.query(DLPPolicyRecord).filter(DLPPolicyRecord.is_active == True).first()
+    if not policy:
+        policy = DLPPolicyRecord(id="default-bank-policy", name="Tier-1 Enterprise Bank DLP Baseline", version=1)
+        db.add(policy)
+
+    if "mask_threshold" in payload:
+        policy.action_threshold_mask = int(payload["mask_threshold"])
+    if "block_threshold" in payload:
+        policy.action_threshold_block = int(payload["block_threshold"])
+    if "whitelisted_domains" in payload:
+        policy.whitelisted_domains = payload["whitelisted_domains"]
+
+    policy.version = (policy.version or 1) + 1
+    policy.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(policy)
+    logger.info(f"[POLICY UPDATE] Policy v{policy.version} updated: Mask={policy.action_threshold_mask}, Block={policy.action_threshold_block}")
+
+    return {
+        "status": "SUCCESS",
+        "message": f"Bank DLP Policy synchronized to v{policy.version}",
+        "policy": {
+            "version": policy.version,
+            "mask_threshold": policy.action_threshold_mask,
+            "block_threshold": policy.action_threshold_block,
+            "whitelisted_domains": policy.whitelisted_domains
+        }
+    }
+
+
+# -----------------------------------------------------------------------------
 # Backward-Compatible Legacy Endpoints (Classify, Redact, Scan, Ingest)
 # -----------------------------------------------------------------------------
 @app.post("/api/v1/dlp/classify", response_model=ClassifyResponse, tags=["DLP"])

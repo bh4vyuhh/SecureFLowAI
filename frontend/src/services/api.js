@@ -90,6 +90,17 @@ export const api = {
     return res.data;
   },
 
+  // Dynamic Bank Policy Management (Tier 3)
+  getPolicy: async () => {
+    const res = await client.get('/api/v1/policies');
+    return res.data;
+  },
+
+  updatePolicy: async (policyData) => {
+    const res = await client.post('/api/v1/policies', policyData);
+    return res.data;
+  },
+
   // WebSocket Live Threat Stream Listener
   connectLiveThreats: (onMessage, onStatusChange) => {
     let ws = null;

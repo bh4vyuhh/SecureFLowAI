@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sliders, ShieldCheck, Lock, Globe, Plus, Trash2, KeyRound, Check, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { api } from '../services/api';
 
 export default function Settings() {
   const [maskThreshold, setMaskThreshold] = useState(45);
@@ -14,6 +15,24 @@ export default function Settings() {
   ]);
   const [newDomain, setNewDomain] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getPolicy()
+      .then((data) => {
+        if (data) {
+          if (data.mask_threshold) setMaskThreshold(data.mask_threshold);
+          if (data.block_threshold) setBlockThreshold(data.block_threshold);
+          if (Array.isArray(data.whitelisted_domains) && data.whitelisted_domains.length > 0) {
+            setWhitelistedDomains(data.whitelisted_domains);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Backend policy API offline, using local bank defaults:', err);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleAddDomain = () => {
     if (!newDomain.trim()) return;
@@ -31,12 +50,20 @@ export default function Settings() {
     toast.success(`Removed ${domain} from whitelist.`);
   };
 
-  const handleSavePolicy = () => {
+  const handleSavePolicy = async () => {
     setSaving(true);
-    setTimeout(() => {
+    try {
+      const res = await api.updatePolicy({
+        mask_threshold: maskThreshold,
+        block_threshold: blockThreshold,
+        whitelisted_domains: whitelistedDomains,
+      });
+      toast.success(res?.message || 'Bank DLP Policy persisted to database & synchronized.');
+    } catch (err) {
+      toast.error('Failed saving to database. Offline fallback activated.');
+    } finally {
       setSaving(false);
-      toast.success('Bank DLP Policy configuration synchronized across all active daemons & extensions.');
-    }, 600);
+    }
   };
 
   return (

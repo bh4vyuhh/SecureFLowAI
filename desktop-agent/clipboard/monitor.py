@@ -21,7 +21,7 @@ class ClipboardMonitor:
         self._running = False
 
     def _get_clipboard_text(self) -> Optional[str]:
-        """Safely fetch clipboard text using pyperclip with fallback to ctypes on Windows."""
+        """Safely fetch clipboard text using pyperclip with fallback to ctypes on Windows (with retry backoff)."""
         try:
             import pyperclip
             return pyperclip.paste()
@@ -36,8 +36,17 @@ class ClipboardMonitor:
             kernel32 = ctypes.windll.kernel32
             CF_UNICODETEXT = 13
 
-            if not user32.OpenClipboard(None):
+            # Retry up to 3 times with 50ms exponential backoff if clipboard is temporarily locked by another app
+            opened = False
+            for attempt in range(3):
+                if user32.OpenClipboard(None):
+                    opened = True
+                    break
+                time.sleep(0.05 * (2 ** attempt))
+
+            if not opened:
                 return None
+
             try:
                 h_mem = user32.GetClipboardData(CF_UNICODETEXT)
                 if not h_mem:
@@ -56,6 +65,27 @@ class ClipboardMonitor:
         except Exception as e:
             logger.debug(f"Clipboard read error: {e}")
             return None
+
+    @staticmethod
+    def clear_clipboard() -> bool:
+        """Inline Blocking Action: Wipes the OS clipboard buffer when high-risk exfiltration is blocked."""
+        try:
+            import pyperclip
+            pyperclip.copy("")
+            return True
+        except Exception:
+            try:
+                import ctypes
+                user32 = ctypes.windll.user32
+                if user32.OpenClipboard(None):
+                    try:
+                        user32.EmptyClipboard()
+                        return True
+                    finally:
+                        user32.CloseClipboard()
+            except Exception as e:
+                logger.error(f"Failed to clear clipboard: {e}")
+        return False
 
     def start(self):
         """Starts the clipboard polling loop."""

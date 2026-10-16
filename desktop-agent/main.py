@@ -64,12 +64,22 @@ class SecureFlowDesktopAgent:
                     message=f"Possible PII detected in {event_data['source']} ({event_data.get('fileName')}). Forwarding to DLP Gateway."
                 )
 
-        # Transmit to Spring Boot Ingestion Gateway
+        # Transmit to Spring Boot Ingestion Gateway or direct AI service
         resp = self.client.send_event(event_data)
-        if resp and resp.get("riskScore", 0) > 75:
+        if resp and (resp.get("riskScore", 0) >= 80 or resp.get("actionTaken") == "BLOCK"):
+            # Inline Strict Enforcement: wipe clipboard to stop exfiltration
+            from clipboard.monitor import ClipboardMonitor
+            ClipboardMonitor.clear_clipboard()
+            logger.warning(f"[INLINE BLOCK ENFORCED] Cleared OS clipboard buffer for event {event_data.get('eventId')}")
+            
             self.notifier.notify(
-                title="HIGH RISK DLP VIOLATION",
-                message=f"Policy violation flagged! Risk: {resp.get('riskScore')}/100. Action: {resp.get('actionTaken', 'FLAGGED')}"
+                title="HIGH RISK DLP VIOLATION [BLOCKED]",
+                message=f"Transmission Blocked! Clipboard cleared. Risk: {resp.get('riskScore')}/100. Action: BLOCK"
+            )
+        elif resp and resp.get("riskScore", 0) > 45:
+            self.notifier.notify(
+                title="SENSITIVE DATA MASKED",
+                message=f"Payload tokenized & masked with AES-256 vault. Risk: {resp.get('riskScore')}/100."
             )
 
     def _contains_obvious_pii(self, text: str) -> bool:

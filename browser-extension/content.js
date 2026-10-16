@@ -60,21 +60,37 @@
         }
       };
 
-      // If high-confidence PII is pasted, show on-page floating banner
+      // If high-confidence PII is pasted, proactively enforce inline blocking
       if (detected.length > 0) {
-        showInPageAlert(detected, targetIdentifier);
+        // Active Inline Prevention: Cancel paste into DOM input field
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        // Optional fallback: Replace paste with masked placeholder text
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          const placeholderNotice = `[BLOCKED BY SECUREFLOW AI: ${detected.join(', ')}]`;
+          try {
+            document.execCommand('insertText', false, placeholderNotice);
+          } catch (_) {
+            // execCommand fallback
+          }
+        }
+
+        showInPageAlert(detected, targetIdentifier, true);
       }
 
-      // Send event to service worker
+      // Send event to service worker for centralized audit logging & WebSocket broadcast
       chrome.runtime.sendMessage({
         type: "SECUREFLOW_INGEST_EVENT",
-        payload: eventPayload
+        payload: {
+          ...eventPayload,
+          actionEnforced: detected.length > 0 ? "BLOCK" : "ALLOW"
+        }
       }, (response) => {
         if (chrome.runtime.lastError) {
-          // Service worker might be sleeping
           console.warn("[SecureFlow AI] Background worker unavailable:", chrome.runtime.lastError.message);
         } else if (response && response.riskScore > 75) {
-          showInPageAlert([`Risk Score: ${response.riskScore}/100 - ${response.actionTaken || 'Restricted'}`], targetIdentifier);
+          showInPageAlert([`Blocked by Policy (Risk: ${response.riskScore}/100)`], targetIdentifier, true);
         }
       });
 
