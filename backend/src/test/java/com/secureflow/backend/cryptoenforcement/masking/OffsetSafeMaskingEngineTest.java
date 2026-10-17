@@ -103,4 +103,20 @@ class OffsetSafeMaskingEngineTest {
         List<EntitySpan> outOfBounds = List.of(new EntitySpan(EntityType.SSN, 10, 20, "invalid"));
         assertEquals("short", maskingEngine.mask(text, outOfBounds));
     }
+
+    @Test
+    @DisplayName("Cross-border European IBANs and high-density entity payloads")
+    void testCrossBorderEuropeanIbansAndHighDensityPayloads() {
+        String transfer = "Transfer from DE89370400440532013000 to FR1420041010050500013M02606 confirmed.";
+        List<EntitySpan> spans = List.of(
+                new EntitySpan(EntityType.IBAN, 14, 36, "DE89370400440532013000"),
+                new EntitySpan(EntityType.IBAN, 40, 67, "FR1420041010050500013M02606")
+        );
+
+        String masked = maskingEngine.mask(transfer, spans);
+        assertTrue(masked.contains("[IBAN_DE****3000]"));
+        assertTrue(masked.contains("[IBAN_FR****2606]"));
+        assertTrue(masked.startsWith("Transfer from "));
+        assertTrue(masked.endsWith(" confirmed."));
+    }
 }
