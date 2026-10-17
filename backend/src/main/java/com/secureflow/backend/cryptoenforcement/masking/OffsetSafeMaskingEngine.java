@@ -28,6 +28,13 @@ public class OffsetSafeMaskingEngine {
      * Applies surgical banking-grade masking to the given text using the provided entity spans.
      * Guaranteed offset-safe with zero corruption of surrounding greetings and text.
      *
+     * Mathematical Proof of Invariance:
+     * Let entities E = {e_1, e_2, ..., e_n} where start(e_i) < start(e_j) for i < j.
+     * When mutations are executed in descending order of start index (e_n, e_{n-1}, ..., e_1),
+     * any delta in string length ΔL_j = length(replacement_j) - (end_j - start_j) only alters
+     * indices k > start(e_j). Because start(e_i) < start(e_j) for all i < j,
+     * index(start(e_i)) remains strictly invariant: Δstart(e_i) = 0.
+     *
      * @param text Original raw text
      * @param spans List of detected entity spans from Layer 3 AI Engine
      * @return Sanitized text with standard banking masks
