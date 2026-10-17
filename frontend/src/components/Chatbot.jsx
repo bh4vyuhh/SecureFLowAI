@@ -40,7 +40,7 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="flex flex-col bg-[#0c0c0e] border border-[#161619] rounded-3xl w-full h-[calc(100vh-14rem)] overflow-hidden shadow-2xl">
+    <div className="flex flex-col bg-[#0c0c0e] border border-[#161619] rounded-[28px] w-full h-[calc(100vh-16rem)] overflow-hidden shadow-2xl">
       <div className="bg-[#121316] border-b border-[#161619] px-6 py-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
           <Bot className="w-5.5 h-5.5 text-black" />

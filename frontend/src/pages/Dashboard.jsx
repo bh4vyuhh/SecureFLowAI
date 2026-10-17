@@ -65,18 +65,18 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
   ).toFixed(2);
 
   return (
-    <div className="p-8 space-y-8 select-none max-w-7xl mx-auto">
-      {/* Top Banner: CISO Briefing */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-950/40 via-[#0d111a] to-slate-900/40 border border-[#1e2638] p-6 rounded-3xl backdrop-blur-md">
+    <div className="flex-1 p-8 space-y-8 select-none">
+      {/* Top Banner: Enterprise Overview */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px]">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-blue-400 mb-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+          <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#8df85f] mb-1">
+            <span className="w-2 h-2 rounded-full bg-[#8df85f] animate-ping" />
             Active Banking Perimeter Monitoring
           </div>
-          <h2 className="text-2xl font-bold text-white font-heading">
+          <h1 className="text-4xl font-extrabold tracking-tight uppercase font-sans text-white">
             Enterprise Data Protection & Threat Defense
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          </h1>
+          <p className="text-sm text-[#8e8f96] mt-1">
             Zero-leak mathematical checksum inspection enforcing PCI-DSS, GLBA, and GDPR across endpoints.
           </p>
         </div>
@@ -84,37 +84,35 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setView('live')}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-2 transition shadow-lg shadow-blue-600/25 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-white text-black text-xs font-bold flex items-center gap-2 transition hover:scale-105 shadow-md cursor-pointer"
           >
             <Zap className="w-4 h-4" />
             Inspect Payload
           </button>
           <button
             onClick={() => setView('copilot')}
-            className="px-4 py-2.5 rounded-xl bg-[#161d2d] border border-[#232f48] text-slate-200 hover:text-white hover:border-slate-400 text-xs font-semibold flex items-center gap-2 transition cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-[#121316] border border-[#23252c] text-white hover:border-white text-xs font-semibold flex items-center gap-2 transition cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-purple-400" />
+            <Sparkles className="w-4 h-4 text-[#8df85f]" />
             Copilot Triage
           </button>
         </div>
       </div>
 
-
-
       {/* Charts Section: 24h Trajectory & Entity Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* 24-Hour Threat Trajectory Area Chart */}
-        <div className="lg:col-span-8 banking-card p-6 rounded-3xl space-y-4">
+        <div className="lg:col-span-8 bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px] space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-white font-heading">
+              <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
                 24-Hour Inspection & Threat Trajectory
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#8e8f96] mt-0.5">
                 Volume of data packets inspected vs. blocked unauthorized exfiltrations.
               </p>
             </div>
-            <span className="text-xs font-mono text-slate-400 bg-[#161d2d] px-3 py-1 rounded-xl">
+            <span className="text-xs font-mono text-[#8df85f] bg-[#8df85f]/10 border border-[#8df85f]/20 px-3 py-1 rounded-full font-semibold">
               Live Stream
             </span>
           </div>
@@ -166,12 +164,12 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
         </div>
 
         {/* Entity Breakdown Chart */}
-        <div className="lg:col-span-4 banking-card p-6 rounded-3xl space-y-4 flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px] space-y-4 flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-white font-heading">
+            <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
               Sensitive Financial Entities
             </h3>
-            <p className="text-xs text-slate-400">Distribution of intercepted tokens.</p>
+            <p className="text-xs text-[#8e8f96] mt-0.5">Distribution of intercepted tokens.</p>
           </div>
 
           <div className="h-[200px] w-full">
@@ -192,24 +190,25 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0d111a',
-                    borderColor: '#1e2638',
+                    backgroundColor: '#121316',
+                    borderColor: '#23252c',
                     borderRadius: '12px',
                     fontSize: '12px',
+                    color: '#ffffff',
                   }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="space-y-1.5 pt-2 border-t border-[#1e2638]">
+          <div className="space-y-1.5 pt-2 border-t border-[#161619]">
             {entityBreakdownData.map((e) => (
               <div key={e.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: e.color }} />
-                  <span className="text-slate-300">{e.name}</span>
+                  <span className="text-[#8e8f96]">{e.name}</span>
                 </div>
-                <span className="font-mono text-slate-400 font-semibold">{e.count}</span>
+                <span className="font-mono text-white font-semibold">{e.count}</span>
               </div>
             ))}
           </div>
@@ -219,13 +218,13 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
       {/* Departmental Risk & Live Threat Feed Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Department Risk Bar Chart */}
-        <div className="lg:col-span-6 banking-card p-6 rounded-3xl space-y-4">
+        <div className="lg:col-span-6 bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px] space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-white font-heading">
+              <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
                 Departmental Risk Index
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#8e8f96] mt-0.5">
                 Exposure score by banking division based on incident density.
               </p>
             </div>
@@ -238,17 +237,18 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
                 <YAxis dataKey="name" type="category" stroke="#475569" fontSize={11} width={130} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0d111a',
-                    borderColor: '#1e2638',
+                    backgroundColor: '#121316',
+                    borderColor: '#23252c',
                     borderRadius: '12px',
                     fontSize: '12px',
+                    color: '#ffffff',
                   }}
                 />
                 <Bar dataKey="risk" radius={[0, 8, 8, 0]}>
                   {departmentRiskData.map((d, index) => (
                     <Cell
                       key={`bar-${index}`}
-                      fill={d.risk > 75 ? '#ef4444' : d.risk > 50 ? '#f59e0b' : '#3b82f6'}
+                      fill={d.risk > 75 ? '#f38933' : d.risk > 50 ? '#ffffff' : '#8df85f'}
                     />
                   ))}
                 </Bar>
@@ -258,17 +258,17 @@ export default function Dashboard({ logs, setView, liveAlerts = [] }) {
         </div>
 
         {/* Live Threat Ticker Feed */}
-        <div className="lg:col-span-6 banking-card p-6 rounded-3xl space-y-4">
+        <div className="lg:col-span-6 bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px] space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <h3 className="text-base font-bold text-white font-heading">
+              <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
                 Live Intercept Feed (/ws/live-threats)
               </h3>
             </div>
             <button
               onClick={() => setView('audit')}
-              className="text-xs text-blue-400 hover:underline flex items-center gap-1"
+              className="text-xs text-[#8df85f] hover:underline flex items-center gap-1 font-semibold"
             >
               View Full Logs <ExternalLink className="w-3 h-3" />
             </button>

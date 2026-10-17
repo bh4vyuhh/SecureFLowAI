@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   FileClock, 
   Settings, 
-  Plus, 
   LayoutDashboard, 
   BrainCircuit, 
   ShieldAlert as ScannerIcon, 
@@ -58,15 +57,6 @@ export default function Sidebar({ currentView, setView, alertsCount = 0, wsStatu
           })}
         </nav>
       </div>
-
-      {/* Quick Action Button */}
-      <button 
-        onClick={() => setView('scanner')}
-        className="w-12 h-12 rounded-2xl bg-[#121316] border border-[#21232a] flex items-center justify-center text-white hover:border-white hover:scale-105 transition-all duration-300 shadow-md cursor-pointer"
-        title="Quick Scan File"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
     </aside>
   );
 }

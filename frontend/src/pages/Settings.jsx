@@ -67,12 +67,12 @@ export default function Settings() {
   };
 
   return (
-    <div className="p-8 space-y-8 select-none max-w-7xl mx-auto">
+    <div className="flex-1 p-8 space-y-8 select-none">
       <div>
-        <h2 className="text-2xl font-bold text-white font-heading">
+        <h1 className="text-4xl font-extrabold tracking-tight uppercase font-sans text-white">
           Dynamic Bank Policy & Whitelist Manager
-        </h2>
-        <p className="text-xs text-slate-400 mt-1">
+        </h1>
+        <p className="text-sm text-[#8e8f96] mt-1">
           Configure real-time enforcement thresholds, client circuit breaker behaviors, and cryptographic key versions.
         </p>
       </div>
@@ -81,24 +81,24 @@ export default function Settings() {
         {/* Left Column: Risk Sliders & Circuit Breaker */}
         <div className="lg:col-span-6 space-y-8">
           {/* Dynamic Risk Thresholds */}
-          <div className="banking-card p-6 rounded-3xl space-y-6">
+          <div className="bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px] space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <div className="w-10 h-10 rounded-2xl bg-[#121316] border border-[#23252c] flex items-center justify-center text-white">
                 <Sliders className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white font-heading">
+                <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
                   Dynamic Risk Decision Thresholds
                 </h3>
-                <p className="text-xs text-slate-400">Enforcement boundary on 0-100 DLP risk scale</p>
+                <p className="text-xs text-[#8e8f96]">Enforcement boundary on 0-100 DLP risk scale</p>
               </div>
             </div>
 
             {/* Mask Threshold Slider */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-300">Auto-Mask / Tokenize Threshold:</span>
-                <span className="font-mono font-bold text-amber-400">{maskThreshold} / 100</span>
+                <span className="font-semibold text-white">Auto-Mask / Tokenize Threshold:</span>
+                <span className="font-mono font-bold text-[#8df85f]">{maskThreshold} / 100</span>
               </div>
               <input
                 type="range"
@@ -106,18 +106,18 @@ export default function Settings() {
                 max="70"
                 value={maskThreshold}
                 onChange={(e) => setMaskThreshold(Number(e.target.value))}
-                className="w-full accent-amber-400 cursor-pointer"
+                className="w-full accent-[#8df85f] cursor-pointer"
               />
-              <span className="text-[10px] text-slate-500 block">
+              <span className="text-[10px] text-[#8e8f96] block">
                 Payloads with risk &ge; {maskThreshold} are automatically sanitized with reverse-offset HMAC tokens.
               </span>
             </div>
 
             {/* Block Threshold Slider */}
-            <div className="space-y-2 pt-2 border-t border-[#1a2233]">
+            <div className="space-y-2 pt-2 border-t border-[#161619]">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-300">Hard Exfiltration Block Threshold:</span>
-                <span className="font-mono font-bold text-red-400">{blockThreshold} / 100</span>
+                <span className="font-semibold text-white">Hard Exfiltration Block Threshold:</span>
+                <span className="font-mono font-bold text-[#f38933]">{blockThreshold} / 100</span>
               </div>
               <input
                 type="range"
@@ -125,25 +125,25 @@ export default function Settings() {
                 max="95"
                 value={blockThreshold}
                 onChange={(e) => setBlockThreshold(Number(e.target.value))}
-                className="w-full accent-red-400 cursor-pointer"
+                className="w-full accent-[#f38933] cursor-pointer"
               />
-              <span className="text-[10px] text-slate-500 block">
+              <span className="text-[10px] text-[#8e8f96] block">
                 Payloads with risk &ge; {blockThreshold} (or unencrypted PCI cards/SSNs) trigger immediate hard drop.
               </span>
             </div>
           </div>
 
           {/* Client-Side Circuit Breaker Policy */}
-          <div className="banking-card p-6 rounded-3xl space-y-5">
+          <div className="bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px] space-y-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                <ShieldCheck className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-[#121316] border border-[#23252c] flex items-center justify-center text-white">
+                <ShieldCheck className="w-5 h-5 text-[#8df85f]" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white font-heading">
+                <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
                   Client Endpoint Circuit Breaker
                 </h3>
-                <p className="text-xs text-slate-400">Policy when central gateway is unreachable</p>
+                <p className="text-xs text-[#8e8f96]">Policy when central gateway is unreachable</p>
               </div>
             </div>
 
@@ -153,12 +153,12 @@ export default function Settings() {
                 onClick={() => setCircuitPolicy('FAIL_OPEN')}
                 className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
                   circuitPolicy === 'FAIL_OPEN'
-                    ? 'bg-blue-600/15 border-blue-500 text-white'
-                    : 'bg-[#080b11] border-[#1a2233] text-slate-400 hover:text-slate-200'
+                    ? 'bg-white text-black border-white'
+                    : 'bg-[#121316] border-[#23252c] text-[#8e8f96] hover:text-white hover:border-white'
                 }`}
               >
                 <div className="text-xs font-bold font-mono">FAIL_OPEN (Local Queue)</div>
-                <div className="text-[11px] text-slate-400 mt-1">
+                <div className={`text-[11px] mt-1 ${circuitPolicy === 'FAIL_OPEN' ? 'text-black/80' : 'text-[#8e8f96]'}`}>
                   Allows worker traffic; buffers payloads in local SQLite/memory for deferred sync.
                 </div>
               </button>
@@ -168,12 +168,12 @@ export default function Settings() {
                 onClick={() => setCircuitPolicy('FAIL_CLOSED')}
                 className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
                   circuitPolicy === 'FAIL_CLOSED'
-                    ? 'bg-red-600/15 border-red-500 text-white'
-                    : 'bg-[#080b11] border-[#1a2233] text-slate-400 hover:text-slate-200'
+                    ? 'bg-[#f38933] text-black border-[#f38933]'
+                    : 'bg-[#121316] border-[#23252c] text-[#8e8f96] hover:text-white hover:border-white'
                 }`}
               >
                 <div className="text-xs font-bold font-mono">FAIL_CLOSED (Strict Block)</div>
-                <div className="text-[11px] text-slate-400 mt-1">
+                <div className={`text-[11px] mt-1 ${circuitPolicy === 'FAIL_CLOSED' ? 'text-black/80' : 'text-[#8e8f96]'}`}>
                   Blocks all untrusted transfers until gateway liveness probe succeeds.
                 </div>
               </button>
@@ -184,16 +184,16 @@ export default function Settings() {
         {/* Right Column: Whitelist Manager & Cryptographic Rotation */}
         <div className="lg:col-span-6 space-y-8">
           {/* Whitelist Manager */}
-          <div className="banking-card p-6 rounded-3xl space-y-5">
+          <div className="bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px] space-y-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Globe className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-[#121316] border border-[#23252c] flex items-center justify-center text-white">
+                <Globe className="w-5 h-5 text-[#8df85f]" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white font-heading">
+                <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
                   Whitelisted Destination Domains
                 </h3>
-                <p className="text-xs text-slate-400">Endpoints exempt from hard blocking rules</p>
+                <p className="text-xs text-[#8e8f96]">Endpoints exempt from hard blocking rules</p>
               </div>
             </div>
 
@@ -204,11 +204,11 @@ export default function Settings() {
                 value={newDomain}
                 onChange={(e) => setNewDomain(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}
-                className="flex-1 bg-[#080b11] border border-[#1a2233] rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
+                className="flex-1 bg-[#121316] border border-[#23252c] rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-white"
               />
               <button
                 onClick={handleAddDomain}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-black font-semibold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                className="px-4 py-2 bg-[#8df85f] hover:bg-[#8df85f]/90 text-black font-semibold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Add
               </button>
@@ -218,12 +218,12 @@ export default function Settings() {
               {whitelistedDomains.map((dom) => (
                 <div
                   key={dom}
-                  className="p-3 rounded-xl bg-[#090d14] border border-[#1a2233] flex items-center justify-between text-xs font-mono"
+                  className="p-3 rounded-xl bg-[#121316] border border-[#23252c] flex items-center justify-between text-xs font-mono"
                 >
-                  <span className="text-emerald-400 font-semibold">{dom}</span>
+                  <span className="text-[#8df85f] font-semibold">{dom}</span>
                   <button
                     onClick={() => handleRemoveDomain(dom)}
-                    className="text-slate-500 hover:text-red-400 transition cursor-pointer"
+                    className="text-[#8e8f96] hover:text-[#f38933] transition cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -233,29 +233,29 @@ export default function Settings() {
           </div>
 
           {/* Cryptographic Key Rotation Info */}
-          <div className="banking-card p-6 rounded-3xl space-y-4">
+          <div className="bg-[#0c0c0e] border border-[#161619] p-6 rounded-[28px] space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-600/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <KeyRound className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-2xl bg-[#121316] border border-[#23252c] flex items-center justify-center text-white">
+                <KeyRound className="w-5 h-5 text-[#f38933]" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white font-heading">
+                <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
                   Cryptographic Key Rotation
                 </h3>
-                <p className="text-xs text-slate-400">AES-256-GCM Envelope Encryption Status</p>
+                <p className="text-xs text-[#8e8f96]">AES-256-GCM Envelope Encryption Status</p>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#080b11] border border-[#1a2233] space-y-2 text-xs font-mono">
-              <div className="flex justify-between text-slate-400">
+            <div className="p-4 rounded-2xl bg-[#121316] border border-[#23252c] space-y-2 text-xs font-mono">
+              <div className="flex justify-between text-[#8e8f96]">
                 <span>Active Key Version:</span>
-                <strong className="text-emerald-400">v1 (256-bit AES-GCM)</strong>
+                <strong className="text-[#8df85f]">v1 (256-bit AES-GCM)</strong>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-[#8e8f96]">
                 <span>HMAC Pseudonymization Salt:</span>
-                <strong className="text-blue-400">Configured (SHA-256)</strong>
+                <strong className="text-white">Configured (SHA-256)</strong>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-[#8e8f96]">
                 <span>Key Rotation Policy:</span>
                 <strong className="text-white">90-Day Zero-Downtime Roll</strong>
               </div>
@@ -269,7 +269,7 @@ export default function Settings() {
         <button
           onClick={handleSavePolicy}
           disabled={saving}
-          className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-lg shadow-blue-600/30 flex items-center gap-2 cursor-pointer"
+          className="px-6 py-3 rounded-xl bg-white text-black text-xs font-bold transition hover:scale-105 shadow-md flex items-center gap-2 cursor-pointer"
         >
           {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
           {saving ? 'Synchronizing Policies...' : 'Save & Publish Banking Policy'}

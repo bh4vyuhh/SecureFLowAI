@@ -96,12 +96,12 @@ export default function App() {
         return <AuditLogsView logs={logs} setLogs={setLogs} />;
       case 'copilot':
         return (
-          <div className="p-8 space-y-6 max-w-7xl mx-auto">
+          <div className="flex-1 p-8 space-y-8 select-none">
             <div>
-              <h2 className="text-2xl font-bold text-white font-heading">
+              <h1 className="text-4xl font-extrabold tracking-tight uppercase font-sans text-white">
                 Conversational SOC Analyst Copilot
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              </h1>
+              <p className="text-sm text-[#8e8f96] mt-1">
                 Interact with the autonomous AI assistant to review classification decisions, explain technical alert logs, or generate audit queries.
               </p>
             </div>
