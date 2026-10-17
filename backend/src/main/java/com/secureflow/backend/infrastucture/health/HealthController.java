@@ -9,21 +9,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class HealthController {
 
-//    @GetMapping("/api/v1/health")
-//    public ApiResponse<HealthStatus> health(){
-//        HealthStatus status = new HealthStatus(
-//                "UP",
-//                "0.0.1"
-//        );
-//        return new ApiResponse<>(
-//                true,
-//                "SecureFlow Backend is runnign",
-//                status
-//        );
-//    }
     @GetMapping(ApiConstants.API_V1 + ApiConstants.HEALTH)
     public ApiResponse<HealthStatus> health() {
-
-        throw new RuntimeException("Testing Global Exception Handler");
+        HealthStatus status = new HealthStatus(
+                "UP",
+                "1.0.0"
+        );
+        return new ApiResponse<>(
+                true,
+                "SecureFlow Ingestion Gateway is online and healthy",
+                status
+        );
     }
 }
