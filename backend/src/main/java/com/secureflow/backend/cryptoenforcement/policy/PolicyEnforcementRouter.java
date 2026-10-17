@@ -33,9 +33,14 @@ public class PolicyEnforcementRouter {
 
     private final AtomicReference<SecurityPolicy> activePolicyCache = new AtomicReference<>();
     private final AtomicReference<Set<String>> whitelistedDomainsCache = new AtomicReference<>(Collections.emptySet());
+    private final java.util.concurrent.atomic.AtomicLong totalPolicyEvaluations = new java.util.concurrent.atomic.AtomicLong(0);
 
     public PolicyEnforcementRouter(SecurityPolicyRepository policyRepository) {
         this.policyRepository = policyRepository;
+    }
+
+    public long getTotalPolicyEvaluations() {
+        return totalPolicyEvaluations.get();
     }
 
     public record PolicyDecision(
@@ -106,6 +111,7 @@ public class PolicyEnforcementRouter {
      * Core decision router executing the banking priority checklist.
      */
     public PolicyDecision evaluate(int riskScore, String destination, EnforcementAction preferredRemediation) {
+        totalPolicyEvaluations.incrementAndGet();
         SecurityPolicy policy = activePolicyCache.get();
         if (policy == null) {
             refreshCache();
