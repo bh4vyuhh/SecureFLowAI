@@ -1,13 +1,19 @@
 package com.secureflow.backend.common.response;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import java.time.LocalDateTime;
 
+@Builder
+@AllArgsConstructor
 public class ApiResponse<T> {
 
     private boolean success;
     private String message;
     private T data;
-    private LocalDateTime timestamp;
+    @Builder.Default
+    private LocalDateTime timestamp = LocalDateTime.now();
 
     public ApiResponse(){
         this.timestamp = LocalDateTime.now();
@@ -18,6 +24,14 @@ public class ApiResponse<T> {
         this.message = message;
         this.data = data;
         this.timestamp = LocalDateTime.now();
+    }
+
+    public static <T> ApiResponse<T> success(String message, T data) {
+        return new ApiResponse<>(true, message, data);
+    }
+
+    public static <T> ApiResponse<T> ok(T data) {
+        return new ApiResponse<>(true, "Operation successful", data);
     }
 
     public boolean isSuccess(){

@@ -26,3 +26,7 @@ logging:
 
 server:
   port: 9090
+
+crypto:
+  master-key: ${CRYPTO_MASTER_KEY:SecureFlowAI-Production-Banking-Key-32BytesLong!}
+  hmac-salt: ${CRYPTO_HMAC_SALT:SecureFlowAI-Deterministic-HMAC-Token-Salt-2026}

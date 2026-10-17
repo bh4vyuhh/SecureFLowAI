@@ -1,0 +1,53 @@
+-- Initialize SecureFlow Database & Layer 4 Data Vault Tables
+
+\c secureflow;
+
+CREATE TABLE IF NOT EXISTS dlp_audit_logs (
+    id UUID PRIMARY KEY,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    employee_id VARCHAR(120) NOT NULL,
+    application VARCHAR(100) NOT NULL,
+    destination VARCHAR(255) NOT NULL,
+    risk_score INTEGER NOT NULL CHECK (risk_score >= 0 AND risk_score <= 100),
+    action_taken VARCHAR(32) NOT NULL,
+    payload_hash VARCHAR(64) NOT NULL,
+    matched_entities VARCHAR(500),
+    execution_time_ms BIGINT,
+    policy_id_applied VARCHAR(100),
+    details TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON dlp_audit_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_employee_id ON dlp_audit_logs(employee_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action_taken ON dlp_audit_logs(action_taken);
+CREATE INDEX IF NOT EXISTS idx_audit_payload_hash ON dlp_audit_logs(payload_hash);
+
+CREATE TABLE IF NOT EXISTS token_vault (
+    id UUID PRIMARY KEY,
+    token_id VARCHAR(64) NOT NULL UNIQUE,
+    encrypted_value TEXT NOT NULL,
+    iv_nonce VARCHAR(64) NOT NULL,
+    token_type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_by VARCHAR(120) NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_token_id ON token_vault(token_id);
+CREATE INDEX IF NOT EXISTS idx_token_type ON token_vault(token_type);
+CREATE INDEX IF NOT EXISTS idx_token_created_at ON token_vault(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS security_policies (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    block_threshold INTEGER NOT NULL DEFAULT 80,
+    remediate_threshold INTEGER NOT NULL DEFAULT 45,
+    allow_threshold INTEGER NOT NULL DEFAULT 0,
+    whitelisted_domains TEXT NOT NULL,
+    default_remediation_action VARCHAR(32) NOT NULL DEFAULT 'MASK',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+INSERT INTO security_policies (name, block_threshold, remediate_threshold, allow_threshold, whitelisted_domains, default_remediation_action, is_active, updated_at)
+SELECT 'Global Banking Financial DLP Policy', 80, 45, 0, '@visa.com,@mastercard.com,clearinghouse.bank.org,swift.com,internal.bank.com', 'MASK', TRUE, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM security_policies WHERE name = 'Global Banking Financial DLP Policy');
