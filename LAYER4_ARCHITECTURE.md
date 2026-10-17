@@ -267,3 +267,26 @@ cd c:\Users\Bhoomi\SecureFLowAI\backend
 mvn clean test
 ```
 Result: **25 / 25 Tests Passing (0 Failures, 0 Errors, BUILD SUCCESS).**
+
+---
+
+## 📋 7. Regulatory Compliance Matrix & Incident Runbook
+
+### PCI-DSS 4.0 & GDPR Article 32 Alignment
+| Regulatory Clause | Requirement Description | Layer 4 Implementation |
+| :--- | :--- | :--- |
+| **PCI-DSS 3.4** | Render PAN unreadable anywhere it is stored. | AES-256-GCM Envelope Encryption in `token_vault` with unique 12-byte random nonces. |
+| **PCI-DSS 3.5.1** | Restrict access to cryptographic keys and detokenization. | RBAC enforcement (`ROLE_COMPLIANCE_OFFICER`, `ROLE_ADMIN`) in `CryptographicSubsystem`. |
+| **PCI-DSS 10.2** | Implement automated audit trails for all system events. | Asynchronous batch audit ledger (`dlp_audit_logs`) recording digital SHA-256 fingerprints. |
+| **GDPR Art. 32(1)(a)** | Pseudonymisation and encryption of personal data. | Deterministic HMAC-SHA256 tokenization preserving format without exposing plain text. |
+| **NIST SP 800-122** | Safeguard confidentiality of personally identifiable information. | Offset-Safe surgical masking engine preventing text mangling and data exfiltration. |
+
+### SOC Incident Response Runbook
+1. **Critical Block Event (Score $\ge 80$):**
+   - Immediate kill switch executed on transfer.
+   - SHA-256 hash logged to `dlp_audit_logs` with `action_taken = BLOCK`.
+   - Security Operations Center (SOC) receives high-priority event telemetry via `GET /api/v1/audit/stats`.
+2. **Remediation Inspection (Score $45 - 79$):**
+   - Automatic surgical banking redaction or tokenization applied.
+   - Downstream recipients receive sanitized payload preserving non-confidential operational text.
+
