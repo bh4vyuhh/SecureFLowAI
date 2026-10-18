@@ -19,4 +19,8 @@ public record EntitySpan(
                     "Invalid entity span boundaries: start=" + start + ", end=" + end);
         }
     }
+
+    public EntitySpan(String entityType, int start, int end) {
+        this(entityType, start, end, null);
+    }
 }

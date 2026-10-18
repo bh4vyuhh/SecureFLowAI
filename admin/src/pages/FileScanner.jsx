@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, FileText, ShieldCheck, Mail, Send, Download, RefreshCw, AlertCircle, FileCheck, Lock, Key } from 'lucide-react';
+import { Upload, FileText, ShieldCheck, Mail, Send, Download, RefreshCw, AlertCircle, FileCheck, Lock, Key, Info, Scale, CheckCircle2, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
@@ -37,6 +37,13 @@ export default function FileScanner({ onNewLog }) {
         tier,
         riskScore,
         detections,
+        threatCategory: response.threat_category || (riskScore > 75 ? 'CRITICAL_DATA_LEAK' : riskScore >= 45 ? 'INTERNAL_CONFIDENTIAL_PII' : 'BENIGN_BUSINESS_DATA'),
+        explanation: response.explanation || (tier === 'SAFE'
+          ? 'Zero unencrypted payment cards, cryptographic keys, or unauthorized PII detected in document contents. Standard upload authorized.'
+          : 'Potential data leak detected in file structure. Automated DLP policy and encryption routing applied.'),
+        complianceImpact: response.compliance_impact || (riskScore > 75 ? ['PCI-DSS-v4.0', 'GLBA', 'ISO-27001'] : tier === 'CONFIDENTIAL' ? ['GDPR-Art-32', 'SOC2-Privacy'] : ['SOC2-Baseline-Compliance']),
+        remediationAdvice: response.remediation_advice || (riskScore > 75 ? 'Block upload immediately and inspect source repository.' : 'Verify recipient clearance before transferring file.'),
+        latencyBreakdown: response.latency_breakdown || {},
         recommendation: action === 'BLOCK'
           ? 'Block Upload & Quarantine'
           : action === 'MASK' || action === 'ENCRYPT'
@@ -211,6 +218,83 @@ export default function FileScanner({ onNewLog }) {
                   </div>
                   <div className="text-xs font-bold text-white font-mono truncate">{result.fileName}</div>
                   <div className="text-[10px] text-[#8e8f96] font-mono">{result.fileSize}</div>
+                </div>
+
+                {/* Threat Intelligence & Explainability Card */}
+                <div className="p-4 rounded-2xl bg-[#121316] border border-[#21232a] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8e8f96]">
+                      <Info className="w-3.5 h-3.5 text-[#8df85f]" />
+                      Threat Classification & Explainability
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold font-mono uppercase ${
+                      result.threatCategory?.includes('CRITICAL') || result.threatCategory?.includes('EXPOSURE') || result.threatCategory?.includes('PAYMENT') || result.threatCategory?.includes('KEY')
+                        ? 'bg-[#f38933]/20 text-[#f38933] border border-[#f38933]/40'
+                        : result.threatCategory?.includes('INTERNAL') || result.threatCategory?.includes('CONFIDENTIAL')
+                        ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                        : 'bg-[#8df85f]/15 text-[#8df85f] border border-[#8df85f]/30'
+                    }`}>
+                      {result.threatCategory || 'BENIGN_DATA'}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-200 leading-relaxed font-sans bg-black/30 p-2.5 rounded-xl border border-[#21232a]">
+                    {result.explanation}
+                  </p>
+
+                  {/* Regulatory Compliance Badges */}
+                  {result.complianceImpact && result.complianceImpact.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#8e8f96]">
+                        <Scale className="w-3 h-3 text-[#8e8f96]" />
+                        Compliance & Regulatory Mapping
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.complianceImpact.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 rounded-md bg-[#16181d] border border-[#262833] text-[10px] font-mono text-slate-300"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remediation Guidance */}
+                  {result.remediationAdvice && (
+                    <div className="pt-2 border-t border-[#21232a] text-[11px] text-[#8e8f96] flex items-start gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#8df85f] shrink-0 mt-0.5" />
+                      <span><strong className="text-white">Remediation: </strong>{result.remediationAdvice}</span>
+                    </div>
+                  )}
+
+                  {/* OpenTelemetry Granular Latency Breakdown */}
+                  {result.latencyBreakdown && Object.keys(result.latencyBreakdown).length > 0 && (
+                    <div className="pt-2 border-t border-[#21232a] flex items-center gap-2 flex-wrap text-[9px] font-mono text-[#8e8f96]">
+                      <Activity className="w-3 h-3 text-[#8df85f]" />
+                      <span>Trace:</span>
+                      {result.latencyBreakdown.normalization_ms !== undefined && (
+                        <span>norm:{result.latencyBreakdown.normalization_ms}ms</span>
+                      )}
+                      {result.latencyBreakdown.inference_ms !== undefined && (
+                        <span>infer:{result.latencyBreakdown.inference_ms}ms</span>
+                      )}
+                      {result.latencyBreakdown.rules_ms !== undefined && (
+                        <span>rules:{result.latencyBreakdown.rules_ms}ms</span>
+                      )}
+                      {result.latencyBreakdown.ner_ms !== undefined && (
+                        <span>ner:{result.latencyBreakdown.ner_ms}ms</span>
+                      )}
+                      {result.latencyBreakdown.redaction_ms !== undefined && (
+                        <span>redact:{result.latencyBreakdown.redaction_ms}ms</span>
+                      )}
+                      {result.latencyBreakdown.total_ms !== undefined && (
+                        <span className="text-white font-bold">total:{result.latencyBreakdown.total_ms}ms</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Detected Entities */}

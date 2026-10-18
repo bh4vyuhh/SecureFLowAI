@@ -27,8 +27,13 @@ class FileSystemWatcher:
         self._running = True
         
         # Ensure directories exist
+        valid_paths = []
         for p in self.watch_paths:
-            os.makedirs(p, exist_ok=True)
+            try:
+                os.makedirs(p, exist_ok=True)
+                valid_paths.append(p)
+            except Exception as e:
+                logger.warning(f"Could not initialize watch directory '{p}': {e}")
 
         try:
             from watchdog.observers import Observer
@@ -46,7 +51,7 @@ class FileSystemWatcher:
 
             self._observer = Observer()
             handler = Handler()
-            for path in self.watch_paths:
+            for path in valid_paths:
                 logger.info(f"Monitoring folder with watchdog: {path}")
                 self._observer.schedule(handler, path, recursive=False)
             self._observer.start()

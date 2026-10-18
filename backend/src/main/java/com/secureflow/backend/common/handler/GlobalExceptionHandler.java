@@ -9,6 +9,21 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBadCredentials(Exception ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiResponse<>(false, ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        HttpStatus status = ex.getMessage() != null && ex.getMessage().toLowerCase().contains("password")
+                ? HttpStatus.UNAUTHORIZED
+                : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status)
+                .body(new ApiResponse<>(false, ex.getMessage(), null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleException(Exception exception){
         ApiResponse<Object> response = new ApiResponse<>(

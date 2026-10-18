@@ -1,4 +1,4 @@
-package com.secureflow.backend.infrastucture.health;
+package com.secureflow.backend.infrastructure.health;
 
 import com.secureflow.backend.common.constants.ApiConstants;
 import com.secureflow.backend.common.dto.HealthStatus;

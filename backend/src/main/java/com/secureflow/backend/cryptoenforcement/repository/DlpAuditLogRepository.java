@@ -13,8 +13,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import java.util.Optional;
+
 @Repository
 public interface DlpAuditLogRepository extends JpaRepository<DlpAuditLog, UUID> {
+
+    Optional<DlpAuditLog> findTopByOrderByTimestampDesc();
 
     Page<DlpAuditLog> findAllByOrderByTimestampDesc(Pageable pageable);
 

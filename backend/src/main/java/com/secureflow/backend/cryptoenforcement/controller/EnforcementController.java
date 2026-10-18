@@ -10,7 +10,6 @@ import com.secureflow.backend.cryptoenforcement.repository.DlpAuditLogRepository
 import com.secureflow.backend.cryptoenforcement.repository.SecurityPolicyRepository;
 import com.secureflow.backend.cryptoenforcement.service.CryptoEnforcementService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,7 +28,6 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1")
-@RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class EnforcementController {
 
@@ -40,6 +38,23 @@ public class EnforcementController {
     private final AsyncAuditPipeline auditPipeline;
     private final DlpAuditLogRepository auditLogRepository;
     private final SecurityPolicyRepository policyRepository;
+
+    public EnforcementController(
+            CryptoEnforcementService enforcementService,
+            OffsetSafeMaskingEngine maskingEngine,
+            CryptographicSubsystem cryptoSubsystem,
+            PolicyEnforcementRouter policyRouter,
+            AsyncAuditPipeline auditPipeline,
+            DlpAuditLogRepository auditLogRepository,
+            SecurityPolicyRepository policyRepository) {
+        this.enforcementService = enforcementService;
+        this.maskingEngine = maskingEngine;
+        this.cryptoSubsystem = cryptoSubsystem;
+        this.policyRouter = policyRouter;
+        this.auditPipeline = auditPipeline;
+        this.auditLogRepository = auditLogRepository;
+        this.policyRepository = policyRepository;
+    }
 
     // =========================================================================
     // 1. Real-Time DLP Enforcement Pipeline (Module 4 & 5 Orchestrator)
@@ -224,5 +239,25 @@ public class EnforcementController {
         policyRouter.refreshCache(); // Immediate cache invalidation and refresh
 
         return ResponseEntity.ok(ApiResponse.success("Policy updated and in-memory cache refreshed", saved));
+    }
+
+    // =========================================================================
+    // 7. Objective 4: Cryptographic Audit Ledger Integrity Verification
+    // =========================================================================
+
+    @GetMapping("/audit/verify-integrity")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyAuditIntegrity() {
+        boolean valid = auditPipeline.verifyLedgerIntegrity();
+        long totalRecords = auditLogRepository.count();
+        Map<String, Object> report = Map.of(
+                "tamperProofLedgerValid", valid,
+                "totalRecordsVerified", totalRecords,
+                "verificationStandard", "ISO-42001 & SOC2 Trust Services Criteria",
+                "verifiedAt", Instant.now().toString(),
+                "status", valid ? "VERIFIED_UNTOUCHED" : "INTEGRITY_COMPROMISED"
+        );
+        return ResponseEntity.ok(ApiResponse.success(
+                valid ? "Cryptographic ledger integrity verified. Zero unauthorized tampering detected."
+                        : "WARNING: Cryptographic ledger signature mismatch detected!", report));
     }
 }

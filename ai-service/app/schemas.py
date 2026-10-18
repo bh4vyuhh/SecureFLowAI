@@ -96,7 +96,12 @@ class ScanResponse(BaseModel):
     action: Literal["ALLOW", "ENCRYPT", "BLOCK"] = Field(..., description="Automated DLP enforcement policy")
     entities: List[EntitySpan] = Field(default_factory=list, description="Extracted non-overlapping entities")
     sanitized_text: str = Field(..., description="Sanitized text with masked PII")
+    threat_category: Optional[str] = Field("BENIGN_DATA", description="Categorized threat classification")
+    explanation: Optional[str] = Field(None, description="Plain-English explanation of why this was flagged and risk analysis")
+    compliance_impact: List[str] = Field(default_factory=list, description="Violated regulatory frameworks (PCI-DSS, GDPR, HIPAA, etc.)")
+    remediation_advice: Optional[str] = Field(None, description="Operational remediation advice for SOC analyst")
     latency_ms: float = Field(..., description="Total pipeline latency in milliseconds")
+    latency_breakdown: Optional[Dict[str, float]] = Field(default_factory=dict, description="Detailed sub-pipeline latency timing")
     incident_id: Optional[str] = Field(None, description="Persisted incident UUID if stored in audit database")
 
 
@@ -135,7 +140,12 @@ class IngestEventResponse(BaseModel):
     sanitizedContent: Optional[str] = Field(None, description="Masked/sanitized text safe for display or transmission")
     flags: List[str] = Field(default_factory=list, description="List of detected sensitive entity types")
     entityCount: int = Field(0, description="Total count of non-overlapping entities found")
+    threatCategory: Optional[str] = Field("BENIGN_DATA", description="Categorized threat classification")
+    explanation: Optional[str] = Field(None, description="Plain-English explanation of why this was flagged and risk analysis")
+    complianceImpact: List[str] = Field(default_factory=list, description="Violated regulatory frameworks (PCI-DSS, GDPR, HIPAA, etc.)")
+    remediationAdvice: Optional[str] = Field(None, description="Operational remediation advice for SOC analyst")
     latencyMs: float = Field(..., description="Processing time in milliseconds")
+    latencyBreakdown: Optional[Dict[str, float]] = Field(default_factory=dict, description="Distributed latency trace per sub-pipeline")
 
 
 # -----------------------------------------------------------------------------
@@ -163,7 +173,12 @@ class DLPScanResponse(BaseModel):
     sanitized_text: Optional[str] = Field(None, description="Safely masked or tokenized payload")
     detected_entities: List[EntitySpan] = Field(default_factory=list, description="Non-overlapping detected sensitive entities")
     payload_sha256: str = Field(..., description="Zero-leak SHA-256 fingerprint of original payload")
+    threat_category: Optional[str] = Field("BENIGN_DATA", description="Categorized threat classification")
+    explanation: Optional[str] = Field(None, description="Plain-English explanation of why this was flagged and risk analysis")
+    compliance_impact: List[str] = Field(default_factory=list, description="Violated regulatory frameworks (PCI-DSS, GDPR, HIPAA, etc.)")
+    remediation_advice: Optional[str] = Field(None, description="Operational remediation advice for SOC analyst")
     latency_ms: float = Field(..., description="Total synchronous processing latency")
+    latency_breakdown: Optional[Dict[str, float]] = Field(default_factory=dict, description="Distributed latency trace per sub-pipeline")
 
 
 # -----------------------------------------------------------------------------

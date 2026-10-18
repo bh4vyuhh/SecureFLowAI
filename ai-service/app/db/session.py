@@ -54,6 +54,12 @@ def init_db():
                     conn.execute(text("ALTER TABLE dlp_incidents ADD COLUMN audit_hash VARCHAR(64)"))
                 if col_names and "compliance_tags" not in col_names:
                     conn.execute(text("ALTER TABLE dlp_incidents ADD COLUMN compliance_tags JSON"))
+                if col_names and "threat_category" not in col_names:
+                    conn.execute(text("ALTER TABLE dlp_incidents ADD COLUMN threat_category VARCHAR(128) DEFAULT 'BENIGN_DATA'"))
+                if col_names and "explanation" not in col_names:
+                    conn.execute(text("ALTER TABLE dlp_incidents ADD COLUMN explanation TEXT"))
+                if col_names and "remediation_advice" not in col_names:
+                    conn.execute(text("ALTER TABLE dlp_incidents ADD COLUMN remediation_advice TEXT"))
                 conn.commit()
         logger.info(f"[DB INIT] Database tables verified on '{DATABASE_URL.split('@')[-1]}'.")
     except Exception as e:

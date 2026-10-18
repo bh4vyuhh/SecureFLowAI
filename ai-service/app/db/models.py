@@ -50,6 +50,11 @@ class IncidentRecord(Base):
     # Regulatory Compliance Mapping (e.g. ["PCI-DSS-v4.0-Req3", "GDPR-Art32", "RBI-DLP-2023"])
     compliance_tags = Column(JSON, default=list)
 
+    # Threat Explainability & Compliance Intelligence
+    threat_category = Column(String(128), default="BENIGN_DATA", index=True)
+    explanation = Column(Text, nullable=True)
+    remediation_advice = Column(Text, nullable=True)
+
     # Counts of entities detected (e.g. {"CREDIT_CARD": 2, "IBAN": 1})
     entity_counts = Column(JSON, default=dict)
     

@@ -29,7 +29,12 @@ class DetectionResult(BaseModel):
     entities: List[EntitySpan] = Field(default_factory=list, description="Extracted non-overlapping entities")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall classification confidence")
     sanitized_text: str = Field(..., description="Masked or tokenized text representation")
+    threat_category: Optional[str] = Field("BENIGN_DATA", description="Categorized threat classification")
+    explanation: Optional[str] = Field(None, description="Plain-English explanation of why this was flagged and risk analysis")
+    compliance_impact: List[str] = Field(default_factory=list, description="Violated regulatory frameworks (PCI-DSS, GDPR, HIPAA, etc.)")
+    remediation_advice: Optional[str] = Field(None, description="Operational remediation advice for SOC analyst")
     latency_ms: float = Field(..., description="Total detection latency in milliseconds")
+    latency_breakdown: Optional[Dict[str, float]] = Field(default_factory=dict, description="Granular latency trace per sub-pipeline")
     engine_name: str = Field(..., description="Identifier of the active detection engine adapter")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Diagnostic telemetry attributes")
 

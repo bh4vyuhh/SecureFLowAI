@@ -3,30 +3,23 @@ spring:
     name: secureflow-backend
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/secureflow
-    username: secureflow
-    password: secureflow123
-    driver-class-name: org.postgresql.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:secureflow;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
 
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: ${SPRING_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
     hibernate:
       ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-
-logging:
-  level:
-    org.springframework.jdbc: DEBUG
-    com.zaxxer.hikari: DEBUG
-
-#debug: true
+    show-sql: false
 
 server:
-  port: 9090
+  port: ${SERVER_PORT:9090}
 
 crypto:
   master-key: ${CRYPTO_MASTER_KEY:SecureFlowAI-Production-Banking-Key-32BytesLong!}
-  hmac-salt: ${CRYPTO_HMAC_SALT:SecureFlowAI-Deterministic-HMAC-Token-Salt-2026}
+  hmac-salt: ${CRYPTO_HMAC_SALT:SecureFlowAI-Deterministic-HMAC-Token-Salt-2026}
+
+jwt:
+  secret: ${JWT_SECRET:SecureFlowAI-Production-JWT-SecretKey-2026-BankingGrade-32Bytes!}

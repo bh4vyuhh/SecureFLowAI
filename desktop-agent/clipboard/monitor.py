@@ -92,15 +92,22 @@ class ClipboardMonitor:
         self._running = True
         logger.info(f"Clipboard monitoring active (polling every {self.poll_interval * 1000:.0f}ms)")
         
-        # Seed initial content hash so existing clipboard text on launch isn't falsely triggered
+        # Record baseline text hash without triggering block so existing clipboard doesn't cause surprises
         initial_text = self._get_clipboard_text()
-        if initial_text:
+        if initial_text and len(initial_text.strip()) >= self.min_length:
             self._last_content_hash = hashlib.sha256(initial_text.strip().encode('utf-8')).hexdigest()
+            logger.info("Baseline clipboard hash established.")
+        else:
+            self._last_content_hash = None
 
         while self._running:
             try:
                 text = self._get_clipboard_text()
-                if text and len(text.strip()) >= self.min_length:
+                if not text or len(text.strip()) < self.min_length:
+                    # Clipboard was emptied or contains short text; reset hash so copying same text re-triggers
+                    if self._last_content_hash is not None and (not text or len(text.strip()) == 0):
+                        self._last_content_hash = None
+                else:
                     text_clean = text.strip()
                     content_hash = hashlib.sha256(text_clean.encode('utf-8')).hexdigest()
                     if content_hash != self._last_content_hash:

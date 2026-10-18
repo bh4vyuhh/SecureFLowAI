@@ -79,6 +79,21 @@ public class DlpAuditLog implements Persistable<UUID> {
     @Column(name = "policy_id_applied", length = 100)
     private String policyIdApplied;
 
+    @Column(name = "prev_hash", length = 128)
+    private String prevHash;
+
+    @Column(name = "audit_hash", length = 128)
+    private String auditHash;
+
+    @Column(name = "threat_category", length = 120)
+    private String threatCategory;
+
+    @Column(name = "explanation", columnDefinition = "TEXT")
+    private String explanation;
+
+    @Column(name = "compliance_tags", length = 255)
+    private String complianceTags;
+
     @Column(name = "details", columnDefinition = "TEXT")
     private String details;
 }

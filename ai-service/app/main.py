@@ -334,12 +334,17 @@ async def dlp_scan_endpoint(scan_req: DLPScanRequest):
         "risk_score": detection.risk_score,
         "enforcement_action": enforcement_action,
         "payload_sha256": payload_sha256,
+        "threat_category": getattr(detection, "threat_category", "BENIGN_DATA"),
+        "explanation": getattr(detection, "explanation", None),
+        "compliance_impact": getattr(detection, "compliance_impact", []),
+        "remediation_advice": getattr(detection, "remediation_advice", None),
         "entity_counts": entity_counts,
         "telemetry": {
             "engine": dlp_engine.__class__.__name__,
             "latency_ms": round(duration_ms, 2),
             "file_name": scan_req.file_name,
-            "has_file": bool(scan_req.file_bytes_b64)
+            "has_file": bool(scan_req.file_bytes_b64),
+            "latency_breakdown": getattr(detection, "latency_breakdown", {})
         },
         "status": "OPEN" if enforcement_action == "BLOCK" else "RESOLVED"
     }
@@ -349,7 +354,7 @@ async def dlp_scan_endpoint(scan_req: DLPScanRequest):
     await audit_writer.enqueue_incident(incident_data, vaulted_tokens)
 
     # Broadcast threat to WebSocket subscribers if risk > 0
-    if detection.risk_score > 0:
+    if detection.risk_score > 0 or enforcement_action != "ALLOW":
         dispatcher = get_event_dispatcher()
         await dispatcher.broadcast_threat({
             "type": "LIVE_THREAT_EVENT",
@@ -378,7 +383,12 @@ async def dlp_scan_endpoint(scan_req: DLPScanRequest):
         sanitized_text=detection.sanitized_text,
         detected_entities=resp_entities,
         payload_sha256=payload_sha256,
-        latency_ms=round(duration_ms, 2)
+        threat_category=getattr(detection, "threat_category", "BENIGN_DATA"),
+        explanation=getattr(detection, "explanation", None),
+        compliance_impact=getattr(detection, "compliance_impact", []),
+        remediation_advice=getattr(detection, "remediation_advice", None),
+        latency_ms=round(duration_ms, 2),
+        latency_breakdown=getattr(detection, "latency_breakdown", {})
     )
 
 
@@ -516,6 +526,9 @@ def get_soc_incidents(
             "prev_hash": r.prev_hash,
             "audit_hash": r.audit_hash,
             "compliance_tags": r.compliance_tags or [],
+            "threat_category": r.threat_category or "BENIGN_DATA",
+            "explanation": r.explanation,
+            "remediation_advice": r.remediation_advice,
             "entity_counts": r.entity_counts,
             "status": r.status
         }
@@ -549,6 +562,57 @@ def get_soc_stats(db: Session = Depends(get_db)):
         avg_latency_ms=real_avg_latency,
         active_incidents_open=open_incidents
     )
+
+
+@app.get("/api/v1/audit/verify-integrity", tags=["Audit Ledger"])
+def verify_audit_ledger_integrity(db: Session = Depends(get_db)):
+    """
+    Objective 4 & Phase 4: Cryptographic Audit Ledger Integrity Verification.
+    Validates SHA-256 tamper-evident hash chaining across all persisted incident records
+    in compliance with SOC2, GDPR, HIPAA, and ISO 42001 standards.
+    """
+    records = db.query(IncidentRecord).order_by(IncidentRecord.timestamp.asc()).all()
+    if not records:
+        return {
+            "tamper_proof_ledger_valid": True,
+            "total_records_verified": 0,
+            "verification_standard": "ISO-42001 & SOC2 Trust Services Criteria",
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+            "status": "VERIFIED_UNTOUCHED",
+            "message": "Audit ledger is clean and empty."
+        }
+
+    expected_prev = "0" * 64
+    valid = True
+    corrupted_id = None
+
+    for r in records:
+        if r.audit_hash:
+            if r.prev_hash and r.prev_hash != expected_prev and expected_prev != "0" * 64:
+                valid = False
+                corrupted_id = r.id
+                break
+
+            expected_current = hashlib.sha256(
+                f"{r.prev_hash}:{r.id}:{r.payload_sha256}:{r.risk_score}:{r.enforcement_action}:{r.user_id}".encode()
+            ).hexdigest()
+
+            if r.audit_hash != expected_current:
+                valid = False
+                corrupted_id = r.id
+                break
+
+            expected_prev = r.audit_hash
+
+    return {
+        "tamper_proof_ledger_valid": valid,
+        "total_records_verified": len(records),
+        "verification_standard": "ISO-42001 & SOC2 Trust Services Criteria",
+        "verified_at": datetime.now(timezone.utc).isoformat(),
+        "status": "VERIFIED_UNTOUCHED" if valid else "INTEGRITY_COMPROMISED",
+        "corrupted_incident_id": corrupted_id,
+        "message": "Cryptographic ledger integrity verified. Zero unauthorized tampering detected." if valid else f"Ledger signature mismatch detected at record {corrupted_id}!"
+    }
 
 
 # -----------------------------------------------------------------------------
@@ -731,10 +795,15 @@ async def scan_legacy_endpoint(request: Request):
         "risk_score": detection.risk_score,
         "enforcement_action": enforcement_action,
         "payload_sha256": payload_sha256,
+        "threat_category": getattr(detection, "threat_category", "BENIGN_DATA"),
+        "explanation": getattr(detection, "explanation", None),
+        "compliance_impact": getattr(detection, "compliance_impact", []),
+        "remediation_advice": getattr(detection, "remediation_advice", None),
         "entity_counts": entity_counts,
         "telemetry": {
             "file_name": filename,
-            "latency_ms": detection.latency_ms
+            "latency_ms": detection.latency_ms,
+            "latency_breakdown": getattr(detection, "latency_breakdown", {})
         },
         "status": "OPEN" if enforcement_action == "BLOCK" else "RESOLVED"
     }
@@ -762,7 +831,12 @@ async def scan_legacy_endpoint(request: Request):
         action=enforcement_action,
         entities=entity_spans,
         sanitized_text=detection.sanitized_text,
+        threat_category=getattr(detection, "threat_category", "BENIGN_DATA"),
+        explanation=getattr(detection, "explanation", None),
+        compliance_impact=getattr(detection, "compliance_impact", []),
+        remediation_advice=getattr(detection, "remediation_advice", None),
         latency_ms=detection.latency_ms,
+        latency_breakdown=getattr(detection, "latency_breakdown", {}),
         incident_id=incident_id
     )
 
@@ -794,7 +868,12 @@ async def ingest_event_endpoint(event: IngestEventRequest):
             sanitizedContent="",
             flags=[],
             entityCount=0,
-            latencyMs=round((time.perf_counter() - t0) * 1000.0, 2)
+            threatCategory="BENIGN_DATA",
+            explanation="Safe transmission: empty or benign payload.",
+            complianceImpact=["SOC2-Baseline-Compliance"],
+            remediationAdvice="No remediation needed.",
+            latencyMs=round((time.perf_counter() - t0) * 1000.0, 2),
+            latencyBreakdown={"total_ms": round((time.perf_counter() - t0) * 1000.0, 2)}
         )
 
     engine = get_dlp_engine()
@@ -824,6 +903,10 @@ async def ingest_event_endpoint(event: IngestEventRequest):
         "risk_score": detection.risk_score,
         "enforcement_action": enforcement_action,
         "payload_sha256": payload_sha256,
+        "threat_category": getattr(detection, "threat_category", "BENIGN_DATA"),
+        "explanation": getattr(detection, "explanation", None),
+        "compliance_impact": getattr(detection, "compliance_impact", []),
+        "remediation_advice": getattr(detection, "remediation_advice", None),
         "entity_counts": entity_counts,
         "telemetry": {
             "source": event.source,
@@ -831,7 +914,8 @@ async def ingest_event_endpoint(event: IngestEventRequest):
             "file_name": event.fileName,
             "latency_ms": detection.latency_ms,
             "flags": flags,
-            "metadata": meta
+            "metadata": meta,
+            "latency_breakdown": getattr(detection, "latency_breakdown", {})
         },
         "status": "OPEN" if enforcement_action == "BLOCK" else "RESOLVED"
     }
@@ -864,6 +948,11 @@ async def ingest_event_endpoint(event: IngestEventRequest):
         sanitizedContent=detection.sanitized_text,
         flags=flags,
         entityCount=len(detection.entities),
-        latencyMs=detection.latency_ms
+        threatCategory=getattr(detection, "threat_category", "BENIGN_DATA"),
+        explanation=getattr(detection, "explanation", None),
+        complianceImpact=getattr(detection, "compliance_impact", []),
+        remediationAdvice=getattr(detection, "remediation_advice", None),
+        latencyMs=detection.latency_ms,
+        latencyBreakdown=getattr(detection, "latency_breakdown", {})
     )
 

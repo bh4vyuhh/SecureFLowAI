@@ -11,6 +11,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secureflow -d secureflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ai-service:
     build:
@@ -22,12 +27,47 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
-      - HMAC_SECRET_KEY=secureflow-prod-secret-key-2026
+      - HMAC_SECRET_KEY=SecureFlowAI-Production-Banking-Key-32BytesLong!
+      - SOC_DETOKENIZE_KEY=bank-soc-super-secret-key-2026
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 20s
+      timeout: 5s
       retries: 3
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: secureflow-backend
+    restart: always
+    ports:
+      - "9090:9090"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/secureflow
+      - SPRING_DATASOURCE_USERNAME=secureflow
+      - SPRING_DATASOURCE_PASSWORD=secureflow123
+      - AI_SERVICE_URL=http://ai-service:8000
+      - CRYPTO_MASTER_KEY=SecureFlowAI-Production-Banking-Key-32BytesLong!
+      - CRYPTO_HMAC_SALT=SecureFlowAI-Deterministic-HMAC-Token-Salt-2026
+      - JWT_SECRET=SecureFlowAI-Production-JWT-SecretKey-2026-BankingGrade-32Bytes!
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: secureflow-admin
+    restart: always
+    ports:
+      - "5174:80"
+    depends_on:
+      - backend
+      - ai-service
 
 volumes:
   postgres_data:

@@ -142,12 +142,15 @@ class NonBlockingAuditWriter:
                             payload_sha256=inc.get("payload_sha256", ""),
                             prev_hash=current_prev_hash,
                             audit_hash=entry_audit_hash,
-                            compliance_tags=tags,
+                            compliance_tags=inc.get("compliance_impact") or tags,
+                            threat_category=inc.get("threat_category", "BENIGN_DATA"),
+                            explanation=inc.get("explanation"),
+                            remediation_advice=inc.get("remediation_advice"),
                             entity_counts=ent_counts,
                             telemetry=inc.get("telemetry", {}),
                             status=inc.get("status", "OPEN")
                         )
-                        db.add(rec)
+                        db.merge(rec)
                         # Advance hash chain
                         current_prev_hash = entry_audit_hash
 

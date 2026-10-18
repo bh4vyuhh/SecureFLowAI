@@ -28,6 +28,7 @@
 @REM ----------------------------------------------------------------------------
 
 @IF "%__MVNW_ARG0_NAME__%"=="" (SET __MVNW_ARG0_NAME__=%~nx0)
+@IF EXIST "C:\Users\RUSHIKESH\.jdks\corretto-23.0.2" (SET "JAVA_HOME=C:\Users\RUSHIKESH\.jdks\corretto-23.0.2")
 @SET __MVNW_CMD__=
 @SET __MVNW_ERROR__=
 @SET __MVNW_PSMODULEP_SAVE=%PSModulePath%

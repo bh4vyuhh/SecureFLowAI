@@ -95,6 +95,9 @@ class RuleBasedDLPEngine(IDLPEngine):
             tier = "SAFE"
             action = "ALLOW"
 
+        from .hybrid_engine import build_threat_explanation
+        explanation_data = build_threat_explanation(tier, action, total_risk, resolved_ents, {})
+
         duration_ms = (time.perf_counter() - t0) * 1000.0
 
         entity_spans = [
@@ -116,7 +119,12 @@ class RuleBasedDLPEngine(IDLPEngine):
             entities=entity_spans,
             confidence=0.99 if has_critical else 0.85,
             sanitized_text=sanitized,
+            threat_category=explanation_data["threat_category"],
+            explanation=explanation_data["explanation"],
+            compliance_impact=explanation_data["compliance_impact"],
+            remediation_advice=explanation_data["remediation_advice"],
             latency_ms=round(duration_ms, 2),
+            latency_breakdown={"rules_ms": round(duration_ms, 2), "total_ms": round(duration_ms, 2)},
             engine_name=self.name,
             metadata={"rule_count": len(resolved_ents)}
         )

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Sparkles, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle, Zap, Key, ArrowRight } from 'lucide-react';
+import { Shield, Sparkles, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle, Zap, Key, ArrowRight, Info, Scale, CheckCircle2, FileText, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
@@ -63,36 +63,46 @@ export default function LiveClassification({ onNewLog }) {
         : Object.entries(response.detected_entities || {}).map(([k, v]) => `${k} (${v}x)`);
 
       const result = {
-        tier: response.classification_tier || 'SAFE',
-        riskScore: response.risk_score || 0,
+        tier: response.classification_tier || response.tier || 'SAFE',
+        riskScore: response.risk_score !== undefined ? response.risk_score : (response.riskScore || 0),
         piiList: detections,
-        maskedText: response.sanitized_text || response.sanitized_payload || inputText,
-        recommendation: response.enforcement_action === 'BLOCK'
+        maskedText: response.sanitized_text || response.sanitized_payload || response.sanitizedContent || inputText,
+        recommendation: response.enforcement_action === 'BLOCK' || response.actionTaken === 'BLOCK'
           ? 'Block Upload & Encrypt'
-          : response.enforcement_action === 'MASK'
+          : response.enforcement_action === 'MASK' || response.actionTaken === 'MASK'
           ? 'Mask PII Before Processing'
           : 'Allow Transfer',
-        enforcementAction: response.enforcement_action || 'ALLOW',
-        latencyMs: response.latency_ms || elapsed,
-        incidentId: response.incident_id || response.request_id,
-        circuitBreakerState: response.circuit_breaker_state || 'CLOSED'
+        enforcementAction: response.enforcement_action || response.actionTaken || 'ALLOW',
+        latencyMs: response.latency_ms || response.latencyMs || elapsed,
+        incidentId: response.incident_id || response.eventId || response.request_id,
+        circuitBreakerState: response.circuit_breaker_state || 'CLOSED',
+        threatCategory: response.threat_category || response.threatCategory || 'BENIGN_DATA',
+        explanation: response.explanation || (response.classification_tier === 'SAFE' 
+          ? 'Safe transmission: zero unauthorized banking credentials, API secrets, or PII identified.' 
+          : 'Potential data leak detected matching internal policy thresholds.'),
+        complianceImpact: response.compliance_impact || response.complianceTags || ['SOC2-Trust-Baseline'],
+        remediationAdvice: response.remediation_advice || response.remediationAdvice || 'No remediation required. Transmission is compliant.',
+        latencyBreakdown: response.latency_breakdown || response.latencyBreakdown || {}
       };
 
       setClassification(result);
       setReported(false);
 
-      if (onNewLog && response.incident_id) {
+      if (onNewLog && (response.incident_id || response.eventId)) {
         onNewLog({
-          id: response.incident_id,
+          id: response.incident_id || response.eventId,
           timestamp: new Date().toISOString(),
           client_id: 'live-monitor-console',
           user_id: userId,
           department: department,
           destination_domain: destinationDomain,
           source_action: 'Live Classification Monitor',
-          classification_tier: response.classification_tier,
-          risk_score: response.risk_score,
-          enforcement_action: response.enforcement_action,
+          classification_tier: result.tier,
+          risk_score: result.riskScore,
+          enforcement_action: result.enforcementAction,
+          threat_category: result.threatCategory,
+          explanation: result.explanation,
+          compliance_tags: result.complianceImpact,
           details: `Live inspection of text payload (${inputText.length} characters)`
         });
       }
@@ -289,6 +299,72 @@ export default function LiveClassification({ onNewLog }) {
               }`}>
                 {classification.recommendation}
               </div>
+            </div>
+
+            {/* Threat Intelligence & Explainability Box */}
+            <div className="p-4 rounded-2xl bg-[#121316] border border-[#21232a] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8e8f96]">
+                  <Info className="w-3.5 h-3.5 text-[#8df85f]" />
+                  Threat Classification & Explainability
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold font-mono uppercase ${
+                  classification.threatCategory?.includes('CRITICAL') || classification.threatCategory?.includes('EXPOSURE')
+                    ? 'bg-[#f38933]/20 text-[#f38933] border border-[#f38933]/40'
+                    : classification.threatCategory?.includes('INTERNAL')
+                    ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                    : 'bg-[#8df85f]/15 text-[#8df85f] border border-[#8df85f]/30'
+                }`}>
+                  {classification.threatCategory || 'BENIGN_DATA'}
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-200 leading-relaxed font-sans bg-black/30 p-2.5 rounded-xl border border-[#21232a]">
+                {classification.explanation || (classification.tier === 'SAFE' 
+                  ? 'Zero unencrypted payment cards, cryptographic keys, or PII detected. Baseline safe transmission allowed.'
+                  : 'Active data leak pattern identified by SecureFlow AI hybrid inference engine.')}
+              </p>
+
+              {/* Regulatory Compliance Badges */}
+              {classification.complianceImpact && classification.complianceImpact.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#8e8f96]">
+                    <Scale className="w-3 h-3 text-[#8e8f96]" />
+                    Compliance & Regulatory Mapping
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {classification.complianceImpact.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded-md bg-[#16181d] border border-[#262833] text-[10px] font-mono text-slate-300"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Remediation Guidance */}
+              {classification.remediationAdvice && (
+                <div className="pt-2 border-t border-[#21232a] text-[11px] text-[#8e8f96] flex items-start gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#8df85f] shrink-0 mt-0.5" />
+                  <span><strong className="text-white">Remediation: </strong>{classification.remediationAdvice}</span>
+                </div>
+              )}
+
+              {/* OpenTelemetry Granular Latency Breakdown */}
+              {classification.latencyBreakdown && Object.keys(classification.latencyBreakdown).length > 0 && (
+                <div className="pt-2 border-t border-[#21232a] flex items-center gap-2 flex-wrap text-[9px] font-mono text-[#8e8f96]">
+                  <Activity className="w-3 h-3 text-[#8df85f]" />
+                  <span>Trace:</span>
+                  {Object.entries(classification.latencyBreakdown).map(([stage, ms]) => (
+                    <span key={stage} className="bg-black/40 px-1.5 py-0.5 rounded border border-[#21232a]">
+                      {stage}: {ms}ms
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* PII Entity Detections */}

@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/secureflow}
+    username: ${SPRING_DATASOURCE_USERNAME:secureflow}
+    password: ${SPRING_DATASOURCE_PASSWORD:secureflow123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+server:
+  port: ${SERVER_PORT:9090}
+
+crypto:
+  master-key: ${CRYPTO_MASTER_KEY:SecureFlowAI-Production-Banking-Key-32BytesLong!}
+  hmac-salt: ${CRYPTO_HMAC_SALT:SecureFlowAI-Deterministic-HMAC-Token-Salt-2026}
+
+jwt:
+  secret: ${JWT_SECRET:SecureFlowAI-Production-JWT-SecretKey-2026-BankingGrade-32Bytes!}

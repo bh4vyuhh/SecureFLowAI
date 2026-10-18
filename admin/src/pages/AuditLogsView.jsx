@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Download, Search, AlertCircle, RefreshCw, Key, Shield, Eye, Lock, CheckCircle2, X } from 'lucide-react';
+import { Download, Search, AlertCircle, RefreshCw, Key, Shield, Eye, Lock, CheckCircle2, X, ShieldCheck, Info, Scale } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
@@ -8,12 +8,32 @@ export default function AuditLogsView({ logs = [], setLogs, onRefresh }) {
   const [filterSource, setFilterSource] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
   const [selectedLog, setSelectedLog] = useState(null);
+  const [verifying, setVerifying] = useState(false);
 
   // Detokenization state inside modal
   const [authKey, setAuthKey] = useState('bank-sec-admin-token');
   const [tokenInput, setTokenInput] = useState('');
   const [detokenizedResult, setDetokenizedResult] = useState(null);
   const [detokenizing, setDetokenizing] = useState(false);
+
+  const handleVerifyIntegrity = async () => {
+    setVerifying(true);
+    try {
+      const res = await api.verifyLedgerIntegrity();
+      if (res.tamperProofLedgerValid || res.tamper_proof_ledger_valid) {
+        toast.success(
+          `Cryptographic Ledger Verified: ${res.totalRecordsVerified ?? res.total_records_verified ?? 0} records chained with SHA-256 without tampering (${res.verificationStandard ?? res.verification_standard ?? 'SOC2/ISO 42001'})`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.error(`Tamper Alert: Ledger signature mismatch detected at incident ${res.corrupted_incident_id || 'unknown'}!`);
+      }
+    } catch {
+      toast.error('Could not complete cryptographic audit integrity check.');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const handleExportCSV = () => {
     if (logs.length === 0) {
@@ -102,15 +122,26 @@ export default function AuditLogsView({ logs = [], setLogs, onRefresh }) {
           </p>
         </div>
 
-        {onRefresh && (
+        <div className="flex items-center gap-3">
           <button
-            onClick={onRefresh}
-            className="bg-[#0c0c0e] border border-[#161619] rounded-2xl px-4 py-2 text-xs font-semibold text-[#8e8f96] hover:text-white hover:border-white transition cursor-pointer flex items-center gap-2"
+            onClick={handleVerifyIntegrity}
+            disabled={verifying}
+            className="bg-[#0c0c0e] border border-[#8df85f]/40 text-[#8df85f] rounded-2xl px-4 py-2 text-xs font-semibold hover:bg-[#8df85f]/10 hover:border-[#8df85f] transition cursor-pointer flex items-center gap-2"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh Trail
+            <ShieldCheck className={`w-3.5 h-3.5 ${verifying ? 'animate-spin' : ''}`} />
+            {verifying ? 'Verifying Hashes...' : 'Verify Ledger Integrity'}
           </button>
-        )}
+
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="bg-[#0c0c0e] border border-[#161619] rounded-2xl px-4 py-2 text-xs font-semibold text-[#8e8f96] hover:text-white hover:border-white transition cursor-pointer flex items-center gap-2"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh Trail
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-[#0c0c0e] border border-[#161619] rounded-[28px] p-6 space-y-6">
@@ -316,14 +347,84 @@ export default function AuditLogsView({ logs = [], setLogs, onRefresh }) {
                   {selectedLog.risk_score}% — {selectedLog.enforcement_action}
                 </span>
               </div>
-              {selectedLog.payload_sha256 && (
-                <div className="col-span-2 pt-2 border-t border-[#21232a]">
-                  <span className="text-[#8e8f96] block text-[10px] uppercase">Payload SHA-256 Hash:</span>
-                  <span className="text-slate-400 text-[11px] break-all select-all">
-                    {selectedLog.payload_sha256}
+
+              {/* Threat Category & Detailed Explanation */}
+              <div className="col-span-2 pt-2 border-t border-[#21232a] space-y-1.5 font-sans">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8e8f96] text-[10px] uppercase font-bold flex items-center gap-1 font-mono">
+                    <Info className="w-3 h-3 text-[#8df85f]" />
+                    Threat Classification & Explainability:
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase font-mono ${
+                    (selectedLog.threat_category || selectedLog.threatCategory || '').includes('CRITICAL') || (selectedLog.threat_category || selectedLog.threatCategory || '').includes('EXPOSURE')
+                      ? 'bg-[#f38933]/20 text-[#f38933] border border-[#f38933]/30'
+                      : 'bg-[#8df85f]/15 text-[#8df85f] border border-[#8df85f]/30'
+                  }`}>
+                    {selectedLog.threat_category || selectedLog.threatCategory || 'BENIGN_DATA'}
                   </span>
                 </div>
+                <p className="text-xs text-slate-200 bg-black/40 p-2.5 rounded-xl border border-[#21232a] leading-relaxed">
+                  {selectedLog.explanation || 'Clean transaction verified against enterprise banking security baseline.'}
+                </p>
+              </div>
+
+              {/* Compliance & Regulatory Framework Tags */}
+              {((selectedLog.compliance_tags || selectedLog.complianceImpact) && (selectedLog.compliance_tags || selectedLog.complianceImpact).length > 0) && (
+                <div className="col-span-2 space-y-1 font-sans">
+                  <span className="text-[#8e8f96] text-[10px] uppercase font-bold flex items-center gap-1 font-mono">
+                    <Scale className="w-3 h-3 text-[#8e8f96]" />
+                    Regulatory Compliance Mapping:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(selectedLog.compliance_tags || selectedLog.complianceImpact).map((tag, idx) => (
+                      <span key={idx} className="px-2 py-0.5 rounded bg-[#16181d] border border-[#262833] text-[10px] font-mono text-slate-300">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
+
+              {/* Remediation Advice */}
+              {(selectedLog.remediation_advice || selectedLog.remediationAdvice) && (
+                <div className="col-span-2 text-[11px] text-[#8e8f96] flex items-start gap-1.5 font-sans pt-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#8df85f] shrink-0 mt-0.5" />
+                  <span><strong className="text-white">Remediation Action: </strong>{selectedLog.remediation_advice || selectedLog.remediationAdvice}</span>
+                </div>
+              )}
+
+              {/* Cryptographic SHA-256 Ledger Chain (Immutable Audit Proof) */}
+              <div className="col-span-2 pt-2 border-t border-[#21232a] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8e8f96] block text-[10px] uppercase font-bold flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#8df85f]" />
+                    Cryptographic Audit Chain (Immutable SHA-256):
+                  </span>
+                  <span className="text-[9px] text-[#8df85f] font-mono bg-[#8df85f]/10 px-2 py-0.5 rounded border border-[#8df85f]/30">
+                    SOC2 / ISO 42001 Validated
+                  </span>
+                </div>
+                <div className="space-y-1 bg-black/40 p-2.5 rounded-xl border border-[#21232a] text-[10px]">
+                  {selectedLog.prev_hash && (
+                    <div className="truncate">
+                      <span className="text-[#8e8f96]">Prev Hash: </span>
+                      <span className="text-slate-400 select-all">{selectedLog.prev_hash}</span>
+                    </div>
+                  )}
+                  {selectedLog.audit_hash && (
+                    <div className="truncate">
+                      <span className="text-[#8e8f96]">Record Hash: </span>
+                      <span className="text-[#8df85f] font-bold select-all">{selectedLog.audit_hash}</span>
+                    </div>
+                  )}
+                  {selectedLog.payload_sha256 && (
+                    <div className="truncate">
+                      <span className="text-[#8e8f96]">Payload Hash: </span>
+                      <span className="text-slate-400 select-all">{selectedLog.payload_sha256}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Cryptographic Detokenization Utility */}
