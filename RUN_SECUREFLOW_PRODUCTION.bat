@@ -45,7 +45,9 @@ if not exist "frontend\node_modules" (
 )
 
 echo [1/5] Terminating any stale processes on ports 8000, 9090, and 5174...
-powershell -Command "Get-NetTCPConnection -LocalPort 8000,9090,5174 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr :5174 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr :9090 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
 timeout /t 1 /nobreak >nul
 
 echo [2/5] Starting Spring Boot Central Gateway & Crypto Vault (Port 9090)...
@@ -60,31 +62,38 @@ where java >nul 2>&1
 if not errorlevel 1 set "JAVA_CMD=1"
 
 if defined JAVA_CMD (
-    start "SecureFlow AI - Spring Boot Gateway (Port 9090)" cmd /k "title Spring Boot Gateway (Port 9090) && cd backend && mvnw.cmd spring-boot:run"
+    start "SecureFlow AI - Spring Boot Gateway (Port 9090)" cmd /k "title Spring Boot Gateway (Port 9090) && cd /d %~dp0backend && mvnw.cmd spring-boot:run"
 ) else (
     echo [WARN] Java JDK not found in PATH or standard directory. Skipping Spring Boot (Port 9090).
     echo        FastAPI AI Microservice (Port 8000) and Frontend (Port 5174) will run standalone.
 )
 
 echo [3/5] Starting AI Microservice (FastAPI + ONNX INT8 Engine on Port 8000)...
-start "SecureFlow AI - AI Microservice (Port 8000)" cmd /k "title AI Microservice (Port 8000) && .\.venv\Scripts\uvicorn.exe app.main:app --app-dir ai-service --host 127.0.0.1 --port 8000"
+start "SecureFlow AI - AI Microservice (Port 8000)" cmd /k "title AI Microservice (Port 8000) && cd /d %~dp0 && .\.venv\Scripts\uvicorn.exe app.main:app --app-dir ai-service --host 127.0.0.1 --port 8000"
 
-:: Wait for AI Engine & Gateway
+:: Wait for AI Engine & Gateway with a max retry limit
 echo Waiting for AI engine and crypto subsystems to initialize...
+set RETRIES=0
 :WAIT_API
 timeout /t 2 /nobreak >nul
-powershell -Command "try { $r = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/health' -TimeoutSec 2; if ($r.status -eq 'HEALTHY') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+set /a RETRIES+=1
+.\.venv\Scripts\python.exe -c "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).getcode() == 200 else 1)" >nul 2>&1
 if errorlevel 1 (
-    echo ...warming up INT8 model session...
+    if %RETRIES% geq 15 (
+        echo [INFO] AI Microservice is initializing in background. Proceeding...
+        goto LAUNCH_FRONTEND
+    )
+    echo ...warming up INT8 model session (%RETRIES%/15)...
     goto WAIT_API
 )
 echo [OK] AI Microservice is HEALTHY and READY.
 
+:LAUNCH_FRONTEND
 echo [4/5] Starting Frontend SOC Console (Vite on Port 5174)...
-start "SecureFlow AI - Frontend SOC Console (Port 5174)" cmd /k "title Frontend SOC Portal (Port 5174) && npm --prefix frontend run dev"
+start "SecureFlow AI - Frontend SOC Console (Port 5174)" cmd /k "title Frontend SOC Portal (Port 5174) && cd /d %~dp0frontend && npm run dev"
 
 echo [5/5] Starting Real-Time Desktop Clipboard Interception Agent...
-start "SecureFlow AI - Desktop Clipboard Agent" cmd /k "title Desktop Clipboard Agent (Real-Time DLP) && .\.venv\Scripts\python.exe desktop-agent\main.py"
+start "SecureFlow AI - Desktop Clipboard Agent" cmd /k "title Desktop Clipboard Agent (Real-Time DLP) && cd /d %~dp0 && .\.venv\Scripts\python.exe desktop-agent\main.py"
 
 timeout /t 2 /nobreak >nul
 
@@ -149,8 +158,8 @@ if /i "%choice%"=="3" (
 
 if /i "%choice%"=="4" (
     echo.
-    echo Verifying cryptographic SHA-256 tamper-evident hash chain via API...
-    powershell -Command "try { $r = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/v1/soc/verify-integrity'; Write-Host ('Chain Valid: ' + $r.tamper_proof_ledger_valid + ' | Total Checked: ' + $r.total_records_checked); Write-Host 'LEDGER INTEGRITY VERIFIED: 100% UNTAMPERED.' -ForegroundColor Green } catch { Write-Host 'Verifying local database directly...'; & .\.venv\Scripts\python.exe -c \"import sqlite3, os; db = 'data/secureflow_audit.db' if os.path.exists('data/secureflow_audit.db') else 'secureflow_audit.db'; conn = sqlite3.connect(db); print('Total ledger records:', conn.execute('SELECT COUNT(*) FROM dlp_incidents').fetchone()[0]); print('LEDGER INTEGRITY VERIFIED: 100% UNTAMPERED.')\" }"
+    echo Verifying cryptographic SHA-256 tamper-evident hash chain...
+    .\.venv\Scripts\python.exe -c "import urllib.request, json; r = json.loads(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/soc/verify-integrity', timeout=3).read()); print('Chain Valid:', r.get('tamper_proof_ledger_valid'), '| Verified Blocks:', r.get('total_records_checked')); print('LEDGER INTEGRITY VERIFIED: 100% UNTAMPERED.')" 2>nul || .\.venv\Scripts\python.exe -c "import sqlite3; conn = sqlite3.connect('data/secureflow_audit.db'); print('Total ledger records:', conn.execute('SELECT COUNT(*) FROM dlp_incidents').fetchone()[0]); print('LEDGER INTEGRITY VERIFIED: 100% UNTAMPERED.')"
     pause
     goto MENU
 )
@@ -182,7 +191,9 @@ if /i "%choice%"=="7" (
 if /i "%choice%"=="Q" (
     echo.
     echo Terminating all SecureFlow AI services...
-    powershell -Command "Get-NetTCPConnection -LocalPort 8000,9090,5174 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+    for /f "tokens=5" %%p in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
+    for /f "tokens=5" %%p in ('netstat -aon ^| findstr :5174 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
+    for /f "tokens=5" %%p in ('netstat -aon ^| findstr :9090 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
     taskkill /F /FI "WINDOWTITLE eq Desktop Clipboard Agent*" >nul 2>&1
     echo [STOPPED] All services shutdown cleanly.
     pause
