@@ -26,21 +26,23 @@
   // ---------------------------------------------------------------------------
   const DLP_PATTERNS = {
     SSN: /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/,
+    SSN_CONTEXT: /(?:ssn|social\s+security)[\s#:]*\b(\d{9}|\d{3}[- ]\d{2}[- ]\d{4})\b/i,
     CREDIT_CARD: /\b(?:\d[ -]*?){13,19}\b/,
     IBAN: /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b/i,
     BANK_ACCOUNT: /(?:account|acct|a\/c|acc)[\s#:]+(\d{8,18})\b/i,
     ABA_ROUTING: /(?:routing|aba|rtn)[\s#:]+\b(0[1-9]\d{7}|[1-3]\d{8})\b/i,
-    SWIFT_BIC: /(?:swift|bic|bank)[\s#:]*\b([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/i,
+    SWIFT_BIC: /(?:swift|bic|bank)[\s#:]*\b([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/,
     PAN_CARD: /\b[A-Z]{5}[0-9]{4}[A-Z]\b/,
     AADHAAR: /(?:aadhaar|uid|uidai)[\s#:]*\b[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}\b/i,
-    API_KEY: /\b(?:sk-[a-zA-Z0-9_\-]{20,}|gh[pousr]_[0-9a-zA-Z]{36}|AIza[0-9A-Za-z\-_]{35}|xox[baprs]-[0-9a-zA-Z]{10,48}|hf_[0-9a-zA-Z]{34,}|AKIA[0-9A-Z]{16})\b/i,
-    PASSWORD_SECRET: /(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key|passcode|passphrase)[\s:=]+([^\s,;'"<>]{4,})/i,
-    PLAIN_PASSWORD: /\b(?:my\s+)?(?:password|secret|passcode)\s+(?:is|:)\s*([^\s,;'"<>]{4,})/i,
+    API_KEY: /\b(?:sk-[a-zA-Z0-9_\-]{20,}|sk-ant-[a-zA-Z0-9_\-]{20,}|gh[pousr]_[0-9a-zA-Z]{36}|AIza[0-9A-Za-z\-_]{35}|xox[baprs]-[0-9a-zA-Z]{10,48}|hf_[0-9a-zA-Z]{34,}|AKIA[0-9A-Z]{16})\b/i,
+    GENERIC_KEY: /\b(?:api[_-]?key|client[_-]?secret|secret[_-]?key|auth[_-]?token|access[_-]?token)[\s:=]+([a-zA-Z0-9_\-\.]{12,})\b/i,
+    PASSWORD_SECRET: /\b(?:admin\s+)?(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key|passcode|passphrase)[\s:=]+([^\s,;'"<>]{3,})/i,
+    PLAIN_PASSWORD: /\b(?:my\s+|our\s+|the\s+)?(?:password|secret|passcode|pin)\s+(?:is|was|=)?\s*([^\s,;'"<>]{3,})/i,
     BEARER_TOKEN: /\bBearer\s+[a-zA-Z0-9_\-\.]{25,}\b/,
     JWT_TOKEN: /\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b/,
     DB_CONN: /\b(?:postgres|postgresql|mysql|mongodb|redis|mssql|jdbc):\/\/[^\s"']+:[^\s"']+@[^\s"']+\b/i,
     PRIVATE_KEY: /-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----/i,
-    CONFIDENTIAL: /\b(?:STRICTLY CONFIDENTIAL|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT)\b/i,
+    CONFIDENTIAL: /\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TOP SECRET|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT|PROPRIETARY AND CONFIDENTIAL)\b/i,
   };
 
   function luhnCheck(cardStr) {
@@ -77,7 +79,7 @@
       }
     }
 
-    if (DLP_PATTERNS.SSN.test(text)) hits.push("US SSN / National ID");
+    if (DLP_PATTERNS.SSN.test(text) || DLP_PATTERNS.SSN_CONTEXT.test(text)) hits.push("US SSN / National ID");
     if (DLP_PATTERNS.PAN_CARD.test(text)) hits.push("Tax ID / PAN Card");
     if (DLP_PATTERNS.AADHAAR.test(text)) hits.push("National Identity / UID");
     if (DLP_PATTERNS.IBAN.test(text)) hits.push("IBAN Bank Account");
@@ -85,8 +87,8 @@
     if (DLP_PATTERNS.ABA_ROUTING.test(text)) hits.push("ABA Routing Number");
     if (DLP_PATTERNS.SWIFT_BIC.test(text)) hits.push("SWIFT / BIC");
     if (DLP_PATTERNS.PRIVATE_KEY.test(text)) hits.push("Cryptographic Private Key");
-    if (DLP_PATTERNS.API_KEY.test(text)) hits.push("Live API Credential");
-    if (DLP_PATTERNS.PASSWORD_SECRET.test(text) || DLP_PATTERNS.PLAIN_PASSWORD.test(text)) hits.push("Exposed Password / Secret");
+    if (DLP_PATTERNS.API_KEY.test(text) || DLP_PATTERNS.GENERIC_KEY.test(text)) hits.push("Live API Credential / Secret");
+    if (DLP_PATTERNS.PASSWORD_SECRET.test(text) || DLP_PATTERNS.PLAIN_PASSWORD.test(text)) hits.push("Exposed Password / Passcode");
     if (DLP_PATTERNS.BEARER_TOKEN.test(text) || DLP_PATTERNS.JWT_TOKEN.test(text)) hits.push("Authentication Token");
     if (DLP_PATTERNS.DB_CONN.test(text)) hits.push("Database Connection String");
     if (DLP_PATTERNS.CONFIDENTIAL.test(text)) hits.push("Confidential Document Marker");

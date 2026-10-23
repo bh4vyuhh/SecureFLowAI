@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SecureFlow AI - Browser Extension DLP Test Playground</title>
+  <title>SecureFlow AI - Enterprise Browser Extension DLP Test Playground</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -14,7 +14,7 @@
       padding: 30px;
     }
     .container {
-      max-width: 850px;
+      max-width: 900px;
       margin: 0 auto;
     }
     .card {
@@ -124,7 +124,6 @@
       border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
-      width: 100%;
       transition: background 0.2s;
     }
     .submit-btn:hover { background: #059669; color: white; }
@@ -144,7 +143,8 @@
       <h1>🛡️ SecureFlow AI &bull; Browser DLP Testing Playground</h1>
       <p>
         Use this interactive playground to test how the <strong>SecureFlow AI Browser Extension</strong> intercepts 
-        sensitive data when you <strong>type</strong>, <strong>paste</strong>, or <strong>submit forms</strong>.
+        sensitive data when you <strong>type</strong>, <strong>paste</strong>, or <strong>transmit</strong> across standard forms,
+        <strong>Google Gemini AI chat</strong>, and <strong>Webmail (Gmail/Outlook)</strong>.
       </p>
       <div>
         <span class="badge">Active Extension Mode</span>
@@ -157,12 +157,12 @@
     <!-- Ready-to-copy DUMMY SAMPLES -->
     <div class="card">
       <h2>📋 Click to Copy Dummy Financial & PII Data</h2>
-      <p>Click any button below to copy dummy data to your clipboard, then test pasting it into the fields below.</p>
+      <p>Click any button below to copy dummy data to your clipboard, then test typing or pasting it into the fields below.</p>
       
       <div class="grid">
         <div class="sample-box">
-          <div class="sample-title">💳 Dummy Credit Card (Visa)</div>
-          <div class="sample-val" id="sample-cc">4532-8921-0043-9182</div>
+          <div class="sample-title">💳 Dummy Credit Card (Visa Luhn Valid)</div>
+          <div class="sample-val" id="sample-cc">4532 0150 1234 5678</div>
           <button class="copy-btn" onclick="copyValue('sample-cc')">Copy Credit Card</button>
         </div>
 
@@ -186,24 +186,68 @@
       </div>
     </div>
 
-    <!-- INTERACTIVE TEST FORM -->
+    <!-- TEST 1: GEMINI AI PROMPT COMPOSER -->
     <div class="card">
-      <h2>🧪 Test Form 1: Real-time Typing & Paste Test</h2>
+      <h2>🤖 Test 1: Google Gemini AI Prompt Composer Simulation</h2>
       <p>
-        1. <strong>Test Typing:</strong> Manually type <code>4532-8921-0043-9182</code> or <code>123-45-6789</code> into the input box.<br>
-        2. <strong>Test Pasting:</strong> Paste any copied sensitive snippet into the box.<br>
-        3. <strong>Watch:</strong> The extension displays the top-right warning banner, highlights the input with red outline, and sends telemetry to the SOC.
+        Simulates <code>gemini.google.com</code>'s custom <code>&lt;rich-textarea&gt;</code> and Quill <code>.ql-editor</code>.
+        <br>
+        <strong>Try typing sensitive data (e.g. credit card, password, or API key):</strong>
+        <br>
+        1. A <strong>floating warning badge</strong> will immediately appear in the top-right.<br>
+        2. Pressing <strong>Enter</strong> or clicking <strong>Send prompt</strong> will completely block transmission and outline in red.
+      </p>
+
+      <div style="background: #0f111a; border: 1px solid #232738; border-radius: 14px; padding: 14px; margin-top: 12px;">
+        <rich-textarea style="display: block; width: 100%;">
+          <div class="ql-editor textarea" contenteditable="true" role="textbox" aria-label="Enter a prompt here" style="outline: none; min-height: 80px; color: #f1f5f9; font-size: 15px; line-height: 1.5;" placeholder="Enter a prompt here...">
+            <p>Type or paste here to test Gemini detection...</p>
+          </div>
+        </rich-textarea>
+        <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+          <button class="send-button submit-btn" aria-label="Send message" style="padding: 10px 22px; display: flex; align-items: center; gap: 8px;">
+            <span>Send prompt</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST 2: GMAIL / WEBMAIL COMPOSER -->
+    <div class="card">
+      <h2>✉️ Test 2: Gmail / Outlook Webmail Composer Simulation</h2>
+      <p>
+        Simulates Gmail's rich compose window (<code>div.Am.Al.editable</code> and <code>button.aoO</code>).
+        <br>
+        Test typing sensitive data and pressing <strong>Ctrl+Enter</strong> or clicking <strong>Send</strong>.
+      </p>
+
+      <div style="background: #0f111a; border: 1px solid #232738; border-radius: 14px; padding: 14px; margin-top: 12px;">
+        <div role="textbox" contenteditable="true" aria-label="Message Body" class="Am Al editable" style="width: 100%; min-height: 80px; background: #0c0e17; border: 1px solid #334155; border-radius: 8px; padding: 12px; color: #f1f5f9; outline: none; margin-bottom: 12px;">
+          Type or paste email body here...
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+          <button class="aoO T-I-atl submit-btn" aria-label="Send ‪(Ctrl-Enter)‬" style="padding: 10px 22px;">Send (Ctrl+Enter)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST 3: STANDARD HTML FORM -->
+    <div class="card">
+      <h2>🧪 Test 3: Standard Form Submission & Typing Guard</h2>
+      <p>
+        Test standard inputs, textareas, and form submit button.
       </p>
 
       <form id="test-form" onsubmit="handleFormSubmit(event)">
         <div class="form-group">
-          <label for="recipient">Recipient Name / Account Identifier</label>
+          <label for="recipient">Recipient Name</label>
           <input type="text" id="recipient" placeholder="e.g. John Doe / Vendor Payment" autocomplete="off">
         </div>
 
         <div class="form-group">
-          <label for="transfer-notes">Transaction Notes / Message (Try typing or pasting sensitive data here)</label>
-          <textarea id="transfer-notes" rows="4" placeholder="Type or paste confidential data here..." autocomplete="off"></textarea>
+          <label for="transfer-notes">Message / Notes</label>
+          <textarea id="transfer-notes" rows="3" placeholder="Type or paste confidential notes..." autocomplete="off"></textarea>
         </div>
 
         <div class="form-group">
@@ -211,12 +255,19 @@
           <input type="text" id="card-number" placeholder="Try typing a credit card or SSN..." autocomplete="off">
         </div>
 
-        <button type="submit" class="submit-btn">🚀 Submit Form (Tests Form Submission Guard)</button>
+        <button type="submit" class="submit-btn" style="width: 100%;">🚀 Submit Form</button>
       </form>
 
       <div class="alert-preview" id="submit-notice" style="display: none;">
         ✅ Form submitted successfully (No sensitive PII detected).
       </div>
+    </div>
+
+    <!-- TEST 4: FILE UPLOAD GUARD -->
+    <div class="card">
+      <h2>📁 Test 4: File Upload & Attachment DLP Interceptor</h2>
+      <p>Test attaching confidential files (.txt, .csv, .json, .pdf). The extension scans the file contents and blocks any confidential data.</p>
+      <input type="file" id="file-upload-test" style="background: #141721; border: 1px dashed #38bdf8; padding: 18px; width: 100%; border-radius: 8px; color: #94a3b8; cursor: pointer;">
     </div>
   </div>
 
@@ -224,14 +275,13 @@
     function copyValue(elementId) {
       const text = document.getElementById(elementId).innerText.trim();
       navigator.clipboard.writeText(text).then(() => {
-        alert("Copied to clipboard: " + text + "\nNow paste or type it in the form below!");
+        alert("Copied to clipboard: " + text + "\nNow paste or type it in any test field!");
       }).catch(err => {
         console.error("Copy failed", err);
       });
     }
 
     function handleFormSubmit(event) {
-      // If the extension's submit guard allows it, this runs:
       document.getElementById("submit-notice").style.display = "block";
       document.getElementById("submit-notice").innerText = "✅ Form submitted at " + new Date().toLocaleTimeString();
     }

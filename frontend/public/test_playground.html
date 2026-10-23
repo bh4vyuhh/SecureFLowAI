@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SecureFlow AI - Enterprise DLP Browser Extension Test Lab</title>
+  <title>SecureFlow AI - Enterprise Browser Extension DLP Test Playground</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -42,7 +42,7 @@
     }
     .badge {
       display: inline-block;
-      padding: 4px 10px;
+      padding: 3px 8px;
       border-radius: 4px;
       font-size: 12px;
       font-weight: bold;
@@ -83,11 +83,10 @@
       background: #2563eb;
       color: white;
       border: none;
-      padding: 6px 14px;
+      padding: 6px 12px;
       border-radius: 6px;
       cursor: pointer;
       font-size: 12px;
-      font-weight: 600;
       transition: background 0.2s;
     }
     .copy-btn:hover { background: #1d4ed8; }
@@ -101,7 +100,7 @@
       margin-bottom: 6px;
       color: #cbd5e1;
     }
-    input[type="text"], input[type="email"], textarea {
+    input[type="text"], textarea {
       width: 100%;
       background: #0c0e17;
       border: 1px solid #334155;
@@ -112,21 +111,7 @@
       font-family: inherit;
       transition: border-color 0.2s, outline 0.2s;
     }
-    input[type="text"]:focus, input[type="email"]:focus, textarea:focus {
-      outline: 2px solid #3b82f6;
-      border-color: #3b82f6;
-    }
-    .editable-box {
-      min-height: 80px;
-      background: #0c0e17;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 10px 14px;
-      color: #f1f5f9;
-      font-size: 14px;
-      font-family: inherit;
-    }
-    .editable-box:focus {
+    input[type="text"]:focus, textarea:focus {
       outline: 2px solid #3b82f6;
       border-color: #3b82f6;
     }
@@ -139,189 +124,150 @@
       border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
-      width: 100%;
       transition: background 0.2s;
     }
     .submit-btn:hover { background: #059669; color: white; }
-    .email-btn {
-      background: #f59e0b;
-      color: #451a03;
-      font-weight: 700;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      width: 100%;
-      transition: background 0.2s;
-    }
-    .email-btn:hover { background: #d97706; color: white; }
-    .status-box {
-      background: rgba(16, 185, 129, 0.1);
-      border-left: 4px solid #10b981;
+    .alert-preview {
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid #ef4444;
       padding: 12px;
       border-radius: 4px;
       font-size: 13px;
       margin-top: 14px;
-      color: #6ee7b7;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="card">
-      <h1>🛡️ SecureFlow AI &bull; Browser Extension DLP Testing Lab</h1>
+      <h1>🛡️ SecureFlow AI &bull; Browser DLP Testing Playground</h1>
       <p>
-        Use this interactive laboratory to verify that the <strong>SecureFlow AI Browser Extension</strong> detects
-        and completely blocks sensitive data from being sent anywhere (standard web forms, webmail, and applications).
+        Use this interactive playground to test how the <strong>SecureFlow AI Browser Extension</strong> intercepts 
+        sensitive data when you <strong>type</strong>, <strong>paste</strong>, or <strong>transmit</strong> across standard forms,
+        <strong>Google Gemini AI chat</strong>, and <strong>Webmail (Gmail/Outlook)</strong>.
       </p>
       <div>
-        <span class="badge">Universal DLP Guard Active</span>
+        <span class="badge">Active Extension Mode</span>
         <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">
-          Extension must be loaded unpacked from <code>browser-extension/</code> in <code>chrome://extensions</code>
+          Make sure the extension is enabled in <code>chrome://extensions</code>
         </span>
       </div>
     </div>
 
-    <!-- READY-TO-COPY SAMPLES -->
+    <!-- Ready-to-copy DUMMY SAMPLES -->
     <div class="card">
-      <h2>📋 Click-to-Copy Real Sensitive Financial & PII Samples</h2>
-      <p>Click any button below to copy data to your clipboard, then test pasting or typing it into the test scenarios below.</p>
+      <h2>📋 Click to Copy Dummy Financial & PII Data</h2>
+      <p>Click any button below to copy dummy data to your clipboard, then test typing or pasting it into the fields below.</p>
       
       <div class="grid">
         <div class="sample-box">
-          <div class="sample-title">💳 Valid Visa Credit Card (PCI-DSS)</div>
-          <div class="sample-val" id="sample-cc">4111-1111-1111-1111</div>
+          <div class="sample-title">💳 Dummy Credit Card (Visa Luhn Valid)</div>
+          <div class="sample-val" id="sample-cc">4532 0150 1234 5678</div>
           <button class="copy-btn" onclick="copyValue('sample-cc')">Copy Credit Card</button>
         </div>
 
         <div class="sample-box">
-          <div class="sample-title">💳 Banking Demo Credit Card</div>
-          <div class="sample-val" id="sample-demo-cc">4532-8921-0043-9182</div>
-          <button class="copy-btn" onclick="copyValue('sample-demo-cc')">Copy Demo Card</button>
-        </div>
-
-        <div class="sample-box">
-          <div class="sample-title">🆔 US Social Security Number</div>
+          <div class="sample-title">🆔 Dummy US Social Security Number</div>
           <div class="sample-val" id="sample-ssn">123-45-6789</div>
           <button class="copy-btn" onclick="copyValue('sample-ssn')">Copy SSN</button>
         </div>
 
         <div class="sample-box">
-          <div class="sample-title">🏦 International Bank Account (IBAN)</div>
-          <div class="sample-val" id="sample-iban">GB29 BARC 2020 1534 8921 44</div>
+          <div class="sample-title">🏦 Dummy Bank Account (IBAN)</div>
+          <div class="sample-val" id="sample-iban">DE89370400440532013000</div>
           <button class="copy-btn" onclick="copyValue('sample-iban')">Copy IBAN</button>
         </div>
 
         <div class="sample-box">
-          <div class="sample-title">🔑 AWS Cloud Access Key</div>
+          <div class="sample-title">🔑 Dummy AWS API Key</div>
           <div class="sample-val" id="sample-api">AKIAIOSFODNN7EXAMPLE</div>
-          <button class="copy-btn" onclick="copyValue('sample-api')">Copy AWS Key</button>
-        </div>
-
-        <div class="sample-box">
-          <div class="sample-title">🗄️ Database Connection URL</div>
-          <div class="sample-val" id="sample-db">postgres://admin:MasterKey2026!@prod-db.internal:5432/core_banking</div>
-          <button class="copy-btn" onclick="copyValue('sample-db')">Copy DB URI</button>
+          <button class="copy-btn" onclick="copyValue('sample-api')">Copy API Key</button>
         </div>
       </div>
     </div>
 
-    <!-- SCENARIO 1: EMAIL CLIENT TRANSMISSION BLOCKING -->
-    <div class="card email-composer" role="region" aria-label="Email Composer Simulation">
-      <h2>📧 Scenario 1: Webmail & Email Client Exfiltration Guard (Actual Gmail & Outlook Engine)</h2>
-      <p>
-        Simulates sending an external email via actual webmail (Gmail, Outlook). The box below uses Gmail's exact 
-        <code>contenteditable="true"</code> rich-text structure. Try typing or pasting a card, SSN, password, or key, 
-        then press <strong>Ctrl+Enter</strong> or click <strong>"Send"</strong>.
-      </p>
-
-      <div class="form-group">
-        <label>To (Recipient Address):</label>
-        <input type="email" id="email-to" value="external.vendor@external-domain.com" autocomplete="off">
-      </div>
-
-      <div class="form-group">
-        <label>Subject:</label>
-        <input type="text" id="email-subject" value="Confidential Financial Settlement Report" autocomplete="off">
-      </div>
-
-      <div class="form-group">
-        <label>Email Message Body (Gmail-identical rich-text contenteditable div):</label>
-        <div id="gmail-body-sim" class="Am Al editable" role="textbox" aria-label="Message Body" contenteditable="true" style="min-height: 90px; padding: 12px; background: #0c0e17; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-family: sans-serif; font-size: 14px; outline: none;">
-          <div>Hi team,</div>
-          <div>Please review the payment details below:</div>
-          <div><br></div>
-        </div>
-      </div>
-
-      <div style="display: flex; gap: 12px; align-items: center;">
-        <!-- Gmail Send Button Replica -->
-        <div role="button" id="gmail-send-btn" class="T-I J-J5-Ji aoO v7 T-I-atl L3 email-btn" aria-label="Send (Ctrl-Enter)" data-tooltip="Send (Ctrl-Enter)" onclick="simulateEmailSend()" style="cursor: pointer; display: inline-block;">
-          📨 Send (Gmail aoO Button &bull; Ctrl+Enter)
-        </div>
-
-        <button type="button" id="btn-send-email" aria-label="Send" class="email-btn" onclick="simulateEmailSend()">
-          ✉️ Send (Standard Button)
-        </button>
-      </div>
-
-      <div class="status-box" id="email-status" style="display: none; margin-top: 14px;"></div>
-    </div>
-
-    <!-- SCENARIO 2: STANDARD HTML FORM SUBMISSION -->
+    <!-- TEST 1: GEMINI AI PROMPT COMPOSER -->
     <div class="card">
-      <h2>📝 Scenario 2: Standard HTML &lt;form&gt; Submission Guard</h2>
+      <h2>🤖 Test 1: Google Gemini AI Prompt Composer Simulation</h2>
       <p>
-        Tests standard HTML form submission. If any field in this form contains sensitive PII or credentials, 
-        the extension intercepts the <code>submit</code> event in the capture phase and blocks it.
+        Simulates <code>gemini.google.com</code>'s custom <code>&lt;rich-textarea&gt;</code> and Quill <code>.ql-editor</code>.
+        <br>
+        <strong>Try typing sensitive data (e.g. credit card, password, or API key):</strong>
+        <br>
+        1. A <strong>floating warning badge</strong> will immediately appear in the top-right.<br>
+        2. Pressing <strong>Enter</strong> or clicking <strong>Send prompt</strong> will completely block transmission and outline in red.
       </p>
 
-      <form id="payment-form" onsubmit="handleFormSubmit(event)">
+      <div style="background: #0f111a; border: 1px solid #232738; border-radius: 14px; padding: 14px; margin-top: 12px;">
+        <rich-textarea style="display: block; width: 100%;">
+          <div class="ql-editor textarea" contenteditable="true" role="textbox" aria-label="Enter a prompt here" style="outline: none; min-height: 80px; color: #f1f5f9; font-size: 15px; line-height: 1.5;" placeholder="Enter a prompt here...">
+            <p>Type or paste here to test Gemini detection...</p>
+          </div>
+        </rich-textarea>
+        <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+          <button class="send-button submit-btn" aria-label="Send message" style="padding: 10px 22px; display: flex; align-items: center; gap: 8px;">
+            <span>Send prompt</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST 2: GMAIL / WEBMAIL COMPOSER -->
+    <div class="card">
+      <h2>✉️ Test 2: Gmail / Outlook Webmail Composer Simulation</h2>
+      <p>
+        Simulates Gmail's rich compose window (<code>div.Am.Al.editable</code> and <code>button.aoO</code>).
+        <br>
+        Test typing sensitive data and pressing <strong>Ctrl+Enter</strong> or clicking <strong>Send</strong>.
+      </p>
+
+      <div style="background: #0f111a; border: 1px solid #232738; border-radius: 14px; padding: 14px; margin-top: 12px;">
+        <div role="textbox" contenteditable="true" aria-label="Message Body" class="Am Al editable" style="width: 100%; min-height: 80px; background: #0c0e17; border: 1px solid #334155; border-radius: 8px; padding: 12px; color: #f1f5f9; outline: none; margin-bottom: 12px;">
+          Type or paste email body here...
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+          <button class="aoO T-I-atl submit-btn" aria-label="Send ‪(Ctrl-Enter)‬" style="padding: 10px 22px;">Send (Ctrl+Enter)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST 3: STANDARD HTML FORM -->
+    <div class="card">
+      <h2>🧪 Test 3: Standard Form Submission & Typing Guard</h2>
+      <p>
+        Test standard inputs, textareas, and form submit button.
+      </p>
+
+      <form id="test-form" onsubmit="handleFormSubmit(event)">
         <div class="form-group">
-          <label for="pay-vendor">Vendor / Payee Name:</label>
-          <input type="text" id="pay-vendor" value="Apex Global Logistics Inc." autocomplete="off">
+          <label for="recipient">Recipient Name</label>
+          <input type="text" id="recipient" placeholder="e.g. John Doe / Vendor Payment" autocomplete="off">
         </div>
 
         <div class="form-group">
-          <label for="pay-notes">Invoice Notes & Justification:</label>
-          <textarea id="pay-notes" rows="3" placeholder="Paste sensitive account or credit card numbers here..."></textarea>
+          <label for="transfer-notes">Message / Notes</label>
+          <textarea id="transfer-notes" rows="3" placeholder="Type or paste confidential notes..." autocomplete="off"></textarea>
         </div>
 
         <div class="form-group">
-          <label for="pay-card">Card / Account Number:</label>
-          <input type="text" id="pay-card" placeholder="e.g. 4111-1111-1111-1111 or DE89370400440532013000" autocomplete="off">
+          <label for="card-number">Payment Details (Single-line input)</label>
+          <input type="text" id="card-number" placeholder="Try typing a credit card or SSN..." autocomplete="off">
         </div>
 
-        <button type="submit" class="submit-btn">🚀 Submit Form (Tests Form Submit Event)</button>
+        <button type="submit" class="submit-btn" style="width: 100%;">🚀 Submit Form</button>
       </form>
 
-      <div class="status-box" id="form-status" style="display: none;"></div>
+      <div class="alert-preview" id="submit-notice" style="display: none;">
+        ✅ Form submitted successfully (No sensitive PII detected).
+      </div>
     </div>
 
-    <!-- SCENARIO 3: FILE UPLOAD & ATTACHMENT GUARD -->
+    <!-- TEST 4: FILE UPLOAD GUARD -->
     <div class="card">
-      <h2>📁 Scenario 3: File Upload & Document Attachment Guard (Fetch & XHR Interceptor)</h2>
-      <p>
-        Tests file uploads via file picker or drag-and-drop. The extension inspects file contents before network
-        transmission. If sensitive cards, credentials, or PII are found, the upload is <strong>completely aborted</strong>.
-      </p>
-
-      <div class="form-group">
-        <label for="doc-file">Select Local Document (.txt, .csv, .json, .log, etc.):</label>
-        <input type="file" id="doc-file" style="margin-bottom: 10px;">
-      </div>
-
-      <div style="display: flex; gap: 10px; margin-top: 10px;">
-        <button type="button" class="submit-btn" style="background: #ef4444; color: white;" onclick="testUploadSensitiveFile()">
-          🧪 Test Uploading Sensitive File (Card & Password Payload)
-        </button>
-        <button type="button" class="submit-btn" style="background: #3b82f6; color: white;" onclick="testUploadCleanFile()">
-          📄 Test Uploading Clean Document
-        </button>
-      </div>
-
-      <div class="status-box" id="upload-status" style="display: none; margin-top: 14px;"></div>
+      <h2>📁 Test 4: File Upload & Attachment DLP Interceptor</h2>
+      <p>Test attaching confidential files (.txt, .csv, .json, .pdf). The extension scans the file contents and blocks any confidential data.</p>
+      <input type="file" id="file-upload-test" style="background: #141721; border: 1px dashed #38bdf8; padding: 18px; width: 100%; border-radius: 8px; color: #94a3b8; cursor: pointer;">
     </div>
   </div>
 
@@ -329,87 +275,15 @@
     function copyValue(elementId) {
       const text = document.getElementById(elementId).innerText.trim();
       navigator.clipboard.writeText(text).then(() => {
-        alert("Copied: " + text + "\nNow paste it into the form or email body below!");
+        alert("Copied to clipboard: " + text + "\nNow paste or type it in any test field!");
       }).catch(err => {
         console.error("Copy failed", err);
       });
     }
 
-    function simulateEmailSend() {
-      const status = document.getElementById("email-status");
-      status.style.display = "block";
-      status.style.background = "rgba(239, 68, 68, 0.15)";
-      status.style.borderColor = "#ef4444";
-      status.style.color = "#fca5a5";
-      status.innerText = "⚠️ WARNING: Email was sent! (Extension was not enabled or did not intercept).";
-    }
-
     function handleFormSubmit(event) {
-      event.preventDefault();
-      const status = document.getElementById("form-status");
-      status.style.display = "block";
-      status.style.background = "rgba(239, 68, 68, 0.15)";
-      status.style.borderColor = "#ef4444";
-      status.style.color = "#fca5a5";
-      status.innerText = "⚠️ WARNING: Form submitted! (Extension was not enabled or did not intercept).";
-    }
-
-    async function testUploadSensitiveFile() {
-      const status = document.getElementById("upload-status");
-      status.style.display = "block";
-      status.innerText = "Initiating upload of sensitive document (Card: 4111-1111-1111-1111, db_pass: MasterSecret!)...";
-
-      const sensitiveText = "EMPLOYEE PAYROLL RECORD\nCard Number: 4111-1111-1111-1111\nDatabase db_pass: SuperSecret2026!\nSSN: 123-45-6789";
-      const blob = new Blob([sensitiveText], { type: "text/plain" });
-      const file = new File([blob], "confidential_payroll_export.txt", { type: "text/plain" });
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      try {
-        const resp = await fetch("/api/test-upload-sink", {
-          method: "POST",
-          body: formData
-        });
-        status.style.background = "rgba(239, 68, 68, 0.15)";
-        status.style.borderColor = "#ef4444";
-        status.style.color = "#fca5a5";
-        status.innerText = "⚠️ WARNING: Upload reached server without being blocked!";
-      } catch (err) {
-        status.style.background = "rgba(16, 185, 129, 0.15)";
-        status.style.borderColor = "#10b981";
-        status.style.color = "#6ee7b7";
-        status.innerText = "🛡️ SUCCESS: Upload was blocked before network transmission! (" + err.message + ")";
-      }
-    }
-
-    async function testUploadCleanFile() {
-      const status = document.getElementById("upload-status");
-      status.style.display = "block";
-      status.innerText = "Initiating upload of clean business report...";
-
-      const cleanText = "Q4 Quarterly Strategic Marketing Overview\nAll targets on track for delivery.\nTeam meeting scheduled next week.";
-      const blob = new Blob([cleanText], { type: "text/plain" });
-      const file = new File([blob], "quarterly_marketing_clean.txt", { type: "text/plain" });
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      try {
-        await fetch("/api/test-upload-sink", {
-          method: "POST",
-          body: formData
-        });
-        status.style.background = "rgba(16, 185, 129, 0.15)";
-        status.style.borderColor = "#10b981";
-        status.style.color = "#6ee7b7";
-        status.innerText = "✅ Clean document upload permitted (No confidential data).";
-      } catch (err) {
-        status.style.background = "rgba(16, 185, 129, 0.15)";
-        status.style.borderColor = "#10b981";
-        status.style.color = "#6ee7b7";
-        status.innerText = "✅ Clean document upload permitted.";
-      }
+      document.getElementById("submit-notice").style.display = "block";
+      document.getElementById("submit-notice").innerText = "✅ Form submitted at " + new Date().toLocaleTimeString();
     }
   </script>
 </body>

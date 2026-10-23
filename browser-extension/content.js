@@ -1,6 +1,7 @@
 // =============================================================================
 // SecureFlow AI - Enterprise Client Browser DLP Agent (Manifest V3 Content Script)
-// Universal Form Submission, Webmail (Gmail, Outlook), Chat, Keystroke & File Guard
+// Universal Form Submission, Webmail (Gmail, Outlook), Chat (Gemini, ChatGPT, Claude),
+// Keystroke & File Upload Guard
 // =============================================================================
 
 (function () {
@@ -13,31 +14,33 @@
   }
 
   console.log(
-    "%c[SecureFlow AI]%c DLP Browser Agent Initialized (v2.0 Universal Form, Email & Web Application Guard).",
+    "%c[SecureFlow AI]%c DLP Browser Agent Initialized (v2.1 Production-Ready Universal Guard).",
     "color: #8df85f; font-weight: bold;",
     "color: inherit;"
   );
 
   // ---------------------------------------------------------------------------
-  // 1. DLP Detection Patterns (Banking, PCI-DSS, PII, Secrets, Passwords)
+  // 1. DLP Detection Patterns (Banking, PCI-DSS, PII, Secrets, Passwords, AI Prompts)
   // ---------------------------------------------------------------------------
   const DLP_PATTERNS = {
     SSN: /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/,
+    SSN_CONTEXT: /(?:ssn|social\s+security)[\s#:]*\b(\d{9}|\d{3}[- ]\d{2}[- ]\d{4})\b/i,
     CREDIT_CARD: /\b(?:\d[ -]*?){13,19}\b/,
     IBAN: /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b/i,
     BANK_ACCOUNT: /(?:account|acct|a\/c|acc)[\s#:]+(\d{8,18})\b/i,
     ABA_ROUTING: /(?:routing|aba|rtn)[\s#:]+\b(0[1-9]\d{7}|[1-3]\d{8})\b/i,
-    SWIFT_BIC: /(?:swift|bic|bank)[\s#:]*\b([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/i,
+    SWIFT_BIC: /(?:swift|bic|bank)[\s#:]*\b([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/,
     PAN_CARD: /\b[A-Z]{5}[0-9]{4}[A-Z]\b/,
     AADHAAR: /(?:aadhaar|uid|uidai)[\s#:]*\b[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}\b/i,
-    API_KEY: /\b(?:sk-[a-zA-Z0-9_\-]{20,}|gh[pousr]_[0-9a-zA-Z]{36}|AIza[0-9A-Za-z\-_]{35}|xox[baprs]-[0-9a-zA-Z]{10,48}|hf_[0-9a-zA-Z]{34,}|AKIA[0-9A-Z]{16})\b/i,
-    PASSWORD_SECRET: /(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key|passcode|passphrase)[\s:=]+([^\s,;'"<>]{4,})/i,
-    PLAIN_PASSWORD: /\b(?:my\s+)?(?:password|secret|passcode)\s+(?:is|:)\s*([^\s,;'"<>]{4,})/i,
+    API_KEY: /\b(?:sk-[a-zA-Z0-9_\-]{20,}|sk-ant-[a-zA-Z0-9_\-]{20,}|gh[pousr]_[0-9a-zA-Z]{36}|AIza[0-9A-Za-z\-_]{35}|xox[baprs]-[0-9a-zA-Z]{10,48}|hf_[0-9a-zA-Z]{34,}|AKIA[0-9A-Z]{16})\b/i,
+    GENERIC_KEY: /\b(?:api[_-]?key|client[_-]?secret|secret[_-]?key|auth[_-]?token|access[_-]?token)[\s:=]+([a-zA-Z0-9_\-\.]{12,})\b/i,
+    PASSWORD_SECRET: /\b(?:admin\s+)?(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key|passcode|passphrase)[\s:=]+([^\s,;'"<>]{3,})/i,
+    PLAIN_PASSWORD: /\b(?:my\s+|our\s+|the\s+)?(?:password|secret|passcode|pin)\s+(?:is|was|=)?\s*([^\s,;'"<>]{3,})/i,
     BEARER_TOKEN: /\bBearer\s+[a-zA-Z0-9_\-\.]{25,}\b/,
     JWT_TOKEN: /\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b/,
     DB_CONN: /\b(?:postgres|postgresql|mysql|mongodb|redis|mssql|jdbc):\/\/[^\s"']+:[^\s"']+@[^\s"']+\b/i,
     PRIVATE_KEY: /-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----/i,
-    CONFIDENTIAL: /\b(?:STRICTLY CONFIDENTIAL|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT)\b/i,
+    CONFIDENTIAL: /\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TOP SECRET|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT|PROPRIETARY AND CONFIDENTIAL)\b/i,
   };
 
   function luhnCheck(cardStr) {
@@ -74,7 +77,7 @@
       }
     }
 
-    if (DLP_PATTERNS.SSN.test(text)) hits.push("US SSN / National ID");
+    if (DLP_PATTERNS.SSN.test(text) || DLP_PATTERNS.SSN_CONTEXT.test(text)) hits.push("US SSN / National ID");
     if (DLP_PATTERNS.PAN_CARD.test(text)) hits.push("Tax ID / PAN Card");
     if (DLP_PATTERNS.AADHAAR.test(text)) hits.push("National Identity / UID");
     if (DLP_PATTERNS.IBAN.test(text)) hits.push("IBAN Bank Account");
@@ -82,8 +85,8 @@
     if (DLP_PATTERNS.ABA_ROUTING.test(text)) hits.push("ABA Routing Number");
     if (DLP_PATTERNS.SWIFT_BIC.test(text)) hits.push("SWIFT / BIC");
     if (DLP_PATTERNS.PRIVATE_KEY.test(text)) hits.push("Cryptographic Private Key");
-    if (DLP_PATTERNS.API_KEY.test(text)) hits.push("Live API Credential");
-    if (DLP_PATTERNS.PASSWORD_SECRET.test(text) || DLP_PATTERNS.PLAIN_PASSWORD.test(text)) hits.push("Exposed Password / Secret");
+    if (DLP_PATTERNS.API_KEY.test(text) || DLP_PATTERNS.GENERIC_KEY.test(text)) hits.push("Live API Credential / Secret");
+    if (DLP_PATTERNS.PASSWORD_SECRET.test(text) || DLP_PATTERNS.PLAIN_PASSWORD.test(text)) hits.push("Exposed Password / Passcode");
     if (DLP_PATTERNS.BEARER_TOKEN.test(text) || DLP_PATTERNS.JWT_TOKEN.test(text)) hits.push("Authentication Token");
     if (DLP_PATTERNS.DB_CONN.test(text)) hits.push("Database Connection String");
     if (DLP_PATTERNS.CONFIDENTIAL.test(text)) hits.push("Confidential Document Marker");
@@ -92,47 +95,89 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 2. Universal Element Text Collector & Top-Level Compose Container Resolution
+  // 2. Universal Element Text Extraction (Google Gemini, Quill, ProseMirror, Shadow DOM)
   // ---------------------------------------------------------------------------
   function getTopEditableContainer(el) {
     if (!el || el.nodeType !== 1) return null;
-    return el.closest(
-      "div[aria-label*='Message Body' i], div[aria-label*='Message body' i], div.Am.Al.editable, [contenteditable='true'], [role='textbox'], .ql-editor, .ProseMirror, [data-slate-editor='true'], rich-textarea, .editable"
+    return (
+      el.closest(
+        "rich-textarea, div[aria-label*='Message Body' i], div[aria-label*='Message body' i], div.Am.Al.editable, [contenteditable='true'], [role='textbox'], .ql-editor, .ProseMirror, [data-slate-editor='true'], .editable, #prompt-textarea"
+      ) || el
     );
   }
 
   function getElementValueOrText(el) {
     if (!el) return "";
-    if (typeof el.value === "string" && el.tagName !== "DIV" && el.tagName !== "SPAN") {
-      return el.value;
+
+    // A. Native Form Inputs (INPUT, TEXTAREA, SELECT)
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT") {
+      return el.value || "";
     }
+
+    // B. Google Gemini custom web component (<rich-textarea>) and Quill editors
+    if (el.tagName === "RICH-TEXTAREA" || el.classList?.contains("ql-editor") || el.classList?.contains("textarea")) {
+      const qlEditor = el.querySelector?.(".ql-editor, [contenteditable='true'], [role='textbox'], p");
+      if (qlEditor && qlEditor !== el) {
+        const qlText = (qlEditor.innerText || qlEditor.textContent || "").trim();
+        if (qlText) return qlText;
+      }
+    }
+
+    // C. Inspect Shadow DOM if attached
     if (el.shadowRoot) {
-      const inner = el.shadowRoot.querySelector("textarea, input, [contenteditable='true'], .ql-editor, p");
-      if (inner) return getElementValueOrText(inner);
+      const innerEditor = el.shadowRoot.querySelector(
+        ".ql-editor, [contenteditable='true'], [role='textbox'], textarea, input, p"
+      );
+      if (innerEditor) {
+        const sText = getElementValueOrText(innerEditor).trim();
+        if (sText) return sText;
+      }
+      const shadowTxt = (el.shadowRoot.innerText || el.shadowRoot.textContent || "").trim();
+      if (shadowTxt) return shadowTxt;
     }
-    return el.innerText || el.textContent || "";
+
+    // D. Check for child contenteditable or Quill nodes
+    const nestedEditable = el.querySelector?.(
+      ".ql-editor, [contenteditable='true'], [role='textbox'], textarea, p"
+    );
+    if (nestedEditable && nestedEditable !== el) {
+      const nestedText = (nestedEditable.innerText || nestedEditable.textContent || nestedEditable.value || "").trim();
+      if (nestedText) return nestedText;
+    }
+
+    // E. General innerText or textContent fallback
+    const directText = (el.innerText || el.textContent || "").trim();
+    if (directText) return directText;
+
+    // F. Fallback property check
+    if (typeof el.value === "string" && el.value.trim()) {
+      return el.value.trim();
+    }
+
+    return "";
   }
 
   function getDeepTextAndElement(event) {
     const path = (event && typeof event.composedPath === "function") ? event.composedPath() : [];
     const target = (event && event.target) ? event.target : document.activeElement;
 
-    // 1. Resolve to outermost editable container if user is inside a rich composer (Gmail, Outlook, Slack, etc.)
+    // 1. Traverse composed path (handles Web Components and Shadow DOM)
     for (let el of path) {
       if (!el || el.nodeType !== 1) continue;
       const topContainer = getTopEditableContainer(el);
       if (topContainer) {
-        const text = (topContainer.innerText || topContainer.textContent || "").trim();
+        const text = getElementValueOrText(topContainer).trim();
         if (text.length >= 5) {
           return { element: topContainer, text: text };
         }
       }
     }
 
+    // 2. Target element inspection
     if (target && target.nodeType === 1) {
       const topContainer = getTopEditableContainer(target);
       if (topContainer) {
-        const text = (topContainer.innerText || topContainer.textContent || "").trim();
+        const text = getElementValueOrText(topContainer).trim();
         if (text.length >= 5) {
           return { element: topContainer, text: text };
         }
@@ -143,11 +188,12 @@
       }
     }
 
+    // 3. Document activeElement inspection
     const active = document.activeElement;
     if (active && active.nodeType === 1) {
       const topContainer = getTopEditableContainer(active);
       if (topContainer) {
-        const text = (topContainer.innerText || topContainer.textContent || "").trim();
+        const text = getElementValueOrText(topContainer).trim();
         if (text.length >= 5) {
           return { element: topContainer, text: text };
         }
@@ -158,10 +204,22 @@
       }
     }
 
-    const richTextarea = document.querySelector("rich-textarea");
-    if (richTextarea) {
-      const gTxt = getElementValueOrText(richTextarea).trim();
-      if (gTxt.length >= 5) return { element: richTextarea, text: gTxt };
+    // 4. Global fallback to active AI prompts or chat boxes on the page
+    const aiSelectors = [
+      "rich-textarea",
+      "div.ql-editor[contenteditable='true']",
+      "#prompt-textarea",
+      "div[role='textbox'][contenteditable='true']",
+      "div[aria-label*='Message Body' i]",
+      "div[aria-label*='Message body' i]",
+      "div.Am.Al.editable",
+    ];
+    for (let sel of aiSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const txt = getElementValueOrText(el).trim();
+        if (txt.length >= 5) return { element: el, text: txt };
+      }
     }
 
     return { element: target || active, text: "" };
@@ -195,7 +253,7 @@
 
     // B. Check if target is inside an email composer, modal dialog, or chat container
     const composer = targetElement.closest(
-      "[role='dialog'], [role='region'], .compose, .composer, .Am.Al, .modal, .chat-input, .msg-form, .email-composer, table.Ao, div.AD, div.nH, div.M9, div.inboxsdk__compose"
+      "rich-textarea, [role='dialog'], [role='region'], .compose, .composer, .Am.Al, .modal, .chat-input, .msg-form, .email-composer, table.Ao, div.AD, div.nH, div.M9, div.inboxsdk__compose, .input-area-container, .bottom-container"
     );
     if (composer) return { type: "composer", container: composer };
 
@@ -203,11 +261,18 @@
   }
 
   function highlightAndBlock(element, detected, contextTitle, triggerType, textContent) {
-    if (element && element.style) {
-      element.style.outline = "3px solid #ff4d4f";
-      element.style.boxShadow = "0 0 22px rgba(255, 77, 79, 0.75)";
-      element.dataset.sfFlagged = "true";
-      try { element.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+    // Remove typing warning badge if active
+    removeTypingWarningBadge();
+
+    // Resolve visible container for outline
+    const visibleContainer =
+      element?.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
+
+    if (visibleContainer && visibleContainer.style) {
+      visibleContainer.style.outline = "3px solid #ff4d4f";
+      visibleContainer.style.boxShadow = "0 0 25px rgba(255, 77, 79, 0.85)";
+      visibleContainer.dataset.sfFlagged = "true";
+      try { visibleContainer.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
     }
 
     showInPageAlert(detected, contextTitle, true);
@@ -266,23 +331,23 @@
   document.addEventListener("submit", handleFormSubmit, true);
 
   // ---------------------------------------------------------------------------
-  // 5. BUTTON CLICK INTERCEPTION (Gmail Send, Outlook, Google Forms, Web Apps)
+  // 5. BUTTON CLICK INTERCEPTION (Gemini, ChatGPT, Claude, Gmail, Outlook, Forms)
   // ---------------------------------------------------------------------------
   function isSendOrSubmitButton(el) {
     if (!el || el.nodeType !== 1) return false;
 
     // Look for button or clickable element in hierarchy
     const btn = el.closest(
-      "button, [role='button'], input[type='submit'], input[type='button'], a[role='button'], .aoO, .T-I-atl, [data-tooltip*='Send' i], [aria-label*='Send' i], [data-tooltip*='Ctrl-Enter' i], [aria-label*='Ctrl-Enter' i], [data-qa*='send' i], [data-testid*='send' i], [data-testid*='tweetButton' i]"
+      "button, [role='button'], input[type='submit'], input[type='button'], a[role='button'], .aoO, .T-I-atl, .send-button, [data-tooltip*='Send' i], [aria-label*='Send' i], [aria-label*='prompt' i], [data-tooltip*='Ctrl-Enter' i], [aria-label*='Ctrl-Enter' i], [data-qa*='send' i], [data-testid*='send' i], [data-testid*='tweetButton' i]"
     );
     if (!btn) return false;
 
-    // A. Gmail Send Button explicit class signature (.aoO is Gmail's permanent Send button class)
-    if (btn.classList && (btn.classList.contains("aoO") || btn.classList.contains("T-I-atl"))) {
+    // Explicit signatures
+    if (btn.classList && (btn.classList.contains("aoO") || btn.classList.contains("T-I-atl") || btn.classList.contains("send-button"))) {
       return btn;
     }
 
-    // B. Check attributes across all standard web applications
+    // Check attributes across all standard web applications
     const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
     const tooltip = (btn.getAttribute("data-tooltip") || "").toLowerCase();
     const title = (btn.getAttribute("title") || "").toLowerCase();
@@ -293,6 +358,7 @@
     const matchesSend =
       aria.includes("send") ||
       aria.includes("submit") ||
+      aria.includes("prompt") ||
       aria.includes("ctrl-enter") ||
       tooltip.includes("send") ||
       tooltip.includes("submit") ||
@@ -328,19 +394,19 @@
       );
     }
 
-    // 2. Also always scan common webmail compose bodies (Gmail, Outlook, etc.)
-    const webmailSelectors = [
+    // 2. Also always scan common webmail & AI chat compose bodies (Gemini, ChatGPT, Claude, Gmail)
+    const composerSelectors = [
+      "rich-textarea",
+      "div.ql-editor",
+      "#prompt-textarea",
+      "div[role='textbox'][contenteditable='true']",
       "div[aria-label*='Message Body' i]",
       "div[aria-label*='Message body' i]",
       "div.Am.Al.editable",
-      "div[role='textbox'][contenteditable='true']",
-      "#prompt-textarea",
-      "rich-textarea",
-      ".ql-editor",
       ".ProseMirror",
-      "[data-slate-editor='true']"
+      "[data-slate-editor='true']",
     ];
-    for (let sel of webmailSelectors) {
+    for (let sel of composerSelectors) {
       const matched = document.querySelectorAll(sel);
       matched.forEach((m) => {
         if (!elementsToScan.includes(m)) elementsToScan.push(m);
@@ -380,7 +446,7 @@
     return false;
   }
 
-  // Intercept click, pointerdown, and mousedown in capture phase to preempt webmail handlers
+  // Intercept click, pointerdown, and mousedown in capture phase to preempt host page listeners
   window.addEventListener("click", (e) => interceptSendAttempt(e, "Send Button"), true);
   document.addEventListener("click", (e) => interceptSendAttempt(e, "Send Button"), true);
   window.addEventListener("mousedown", (e) => interceptSendAttempt(e, "Send MouseDown"), true);
@@ -409,10 +475,10 @@
       // If not detected in immediate focused element, check all open composers on the page
       if (detected.length === 0) {
         const composers = document.querySelectorAll(
-          "div[aria-label*='Message Body' i], div[aria-label*='Message body' i], div.Am.Al.editable, [contenteditable='true'][role='textbox'], .ql-editor, .ProseMirror"
+          "rich-textarea, div.ql-editor, #prompt-textarea, div[aria-label*='Message Body' i], div[aria-label*='Message body' i], div.Am.Al.editable, [contenteditable='true'][role='textbox']"
         );
         for (let comp of composers) {
-          const compTxt = (comp.innerText || comp.textContent || "").trim();
+          const compTxt = getElementValueOrText(comp).trim();
           const hits = detectSensitivePii(compTxt);
           if (hits.length > 0) {
             detected = hits;
@@ -439,7 +505,7 @@
       }
     }
 
-    // B. Plain Enter (without Shift) in single-line inputs, chatboxes, or forms
+    // B. Plain Enter (without Shift) in single-line inputs, AI chat prompts (Gemini, ChatGPT), or forms
     if (!isCtrlOrCmd && !isShift) {
       const target = event.target || document.activeElement;
 
@@ -466,7 +532,7 @@
         }
       }
 
-      // Check current element (e.g. Chatbox, AI prompt, single input)
+      // Check current element (e.g. Gemini prompt, ChatGPT prompt, Chatbox, single input)
       const { element, text } = getDeepTextAndElement(event);
       if (text && text.length >= 5) {
         const detected = detectSensitivePii(text);
@@ -478,7 +544,7 @@
           highlightAndBlock(
             element,
             detected,
-            "Transmission Blocked (Enter Key)",
+            "Prompt Transmission Blocked (Enter Key)",
             "ENTER_KEY_ATTEMPT",
             text
           );
@@ -527,42 +593,63 @@
   document.addEventListener("paste", handlePaste, true);
 
   // ---------------------------------------------------------------------------
-  // 8. REAL-TIME TYPING BADGE (Debounced 350ms, Visual border warning)
+  // 8. REAL-TIME TYPING DETECTION & FLOATING WARNING BADGE (Debounced 200ms)
   // ---------------------------------------------------------------------------
   let typingTimer = null;
-  const TYPING_DEBOUNCE_MS = 350;
+  const TYPING_DEBOUNCE_MS = 200;
 
   function handleInput(event) {
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => {
       const { element, text } = getDeepTextAndElement(event);
       if (!text || text.length < 5) {
-        if (element && element.dataset && element.dataset.sfFlagged) {
-          element.style.outline = "";
-          element.style.boxShadow = "";
-          delete element.dataset.sfFlagged;
+        removeTypingWarningBadge();
+        if (element) {
+          const visibleContainer =
+            element.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
+          if (visibleContainer && visibleContainer.dataset && visibleContainer.dataset.sfFlagged) {
+            visibleContainer.style.outline = "";
+            visibleContainer.style.boxShadow = "";
+            delete visibleContainer.dataset.sfFlagged;
+          }
         }
         return;
       }
 
       const detected = detectSensitivePii(text);
       if (detected.length > 0) {
-        if (element && element.style) {
-          element.style.outline = "2px solid #ff4d4f";
-          element.style.boxShadow = "0 0 12px rgba(255, 77, 79, 0.45)";
-          element.dataset.sfFlagged = "true";
+        // High visibility outline on composer wrapper
+        const visibleContainer =
+          element?.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
+
+        if (visibleContainer && visibleContainer.style) {
+          visibleContainer.style.outline = "2.5px solid #ff4d4f";
+          visibleContainer.style.boxShadow = "0 0 16px rgba(255, 77, 79, 0.55)";
+          visibleContainer.dataset.sfFlagged = "true";
         }
-        console.warn("%c[SecureFlow DLP Typing Warning]%c", "color: #ff4d4f; font-weight: bold;", "", detected);
-      } else if (element && element.dataset && element.dataset.sfFlagged) {
-        element.style.outline = "";
-        element.style.boxShadow = "";
-        delete element.dataset.sfFlagged;
+
+        // Show persistent floating typing warning badge
+        showTypingWarningBadge(detected, "Sensitive Data Detected in Composer");
+        console.warn("%c[SecureFlow DLP Typing Warning]%c Flagged:", "color: #ff4d4f; font-weight: bold;", "", detected);
+      } else {
+        removeTypingWarningBadge();
+        const visibleContainer =
+          element?.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
+        if (visibleContainer && visibleContainer.dataset && visibleContainer.dataset.sfFlagged) {
+          visibleContainer.style.outline = "";
+          visibleContainer.style.boxShadow = "";
+          delete visibleContainer.dataset.sfFlagged;
+        }
       }
     }, TYPING_DEBOUNCE_MS);
   }
 
+  // Bind to input, keyup, beforeinput, and change across both window and document in capture phase
   window.addEventListener("input", handleInput, true);
   document.addEventListener("input", handleInput, true);
+  window.addEventListener("keyup", handleInput, true);
+  document.addEventListener("keyup", handleInput, true);
+  window.addEventListener("beforeinput", handleInput, true);
   document.addEventListener("change", handleInput, true);
 
   // ---------------------------------------------------------------------------
@@ -716,7 +803,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 11. IN-PAGE FLOATING ALERT BANNER (High Visibility & Self-Dismissing)
+  // 11. IN-PAGE FLOATING ALERT BANNERS & REAL-TIME TYPING BADGES
   // ---------------------------------------------------------------------------
   function ensureStylesInjected() {
     if (document.getElementById("sf-dlp-styles")) return;
@@ -724,17 +811,68 @@
     styleEl.id = "sf-dlp-styles";
     styleEl.textContent = `
       @keyframes sfFadeIn {
-        from { opacity: 0; transform: translateY(-14px) scale(0.95); }
+        from { opacity: 0; transform: translateY(-12px) scale(0.96); }
         to { opacity: 1; transform: translateY(0) scale(1); }
       }
       @keyframes sfPulse {
-        0%, 100% { box-shadow: 0 0 10px #ff4d4f; }
-        50% { box-shadow: 0 0 20px #ff7875; }
+        0%, 100% { box-shadow: 0 0 8px #ff4d4f; }
+        50% { box-shadow: 0 0 18px #ff7875; }
       }
     `;
     (document.head || document.documentElement).appendChild(styleEl);
   }
 
+  // Floating Real-Time Typing Badge (Shows immediately as user types sensitive PII)
+  function showTypingWarningBadge(detected, contextTitle) {
+    ensureStylesInjected();
+    let badge = document.getElementById("sf-dlp-typing-badge");
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.id = "sf-dlp-typing-badge";
+      badge.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #0f111a;
+        color: #ffffff;
+        border: 1.5px solid #f59e0b;
+        box-shadow: 0 12px 35px rgba(0,0,0,0.85), 0 0 16px rgba(245,158,11,0.35);
+        padding: 12px 18px;
+        border-radius: 10px;
+        z-index: 2147483647;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: sfFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        pointer-events: auto;
+      `;
+      (document.body || document.documentElement).appendChild(badge);
+    }
+
+    badge.innerHTML = `
+      <div style="width: 12px; height: 12px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 10px #f59e0b; animation: sfPulse 1.2s infinite; flex-shrink: 0;"></div>
+      <div>
+        <div style="font-weight: 700; color: #fbbf24; font-size: 13px; letter-spacing: -0.2px;">
+          ⚠️ SecureFlow AI DLP &bull; Sensitive Data Detected
+        </div>
+        <div style="color: #cbd5e1; font-size: 12px; margin-top: 2px;">
+          Flagged: <strong style="color: #fde68a;">${detected.join(", ")}</strong>
+        </div>
+        <div style="color: #94a3b8; font-size: 11px; margin-top: 2px;">
+          Will be blocked upon Enter or Send.
+        </div>
+      </div>
+    `;
+  }
+
+  function removeTypingWarningBadge() {
+    const badge = document.getElementById("sf-dlp-typing-badge");
+    if (badge) badge.remove();
+  }
+
+  // Full Screen Transmission Block Alert Banner
   function showInPageAlert(reasons, context, isBlocked) {
     ensureStylesInjected();
     const existing = document.getElementById("sf-dlp-alert-banner");
@@ -749,7 +887,7 @@
       background: #0f111a;
       color: #ffffff;
       border: 1.5px solid #ff4d4f;
-      box-shadow: 0 14px 40px rgba(0,0,0,0.8), 0 0 20px rgba(255,77,79,0.35);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.85), 0 0 20px rgba(255,77,79,0.35);
       padding: 16px 20px;
       border-radius: 12px;
       z-index: 2147483647;
