@@ -165,7 +165,9 @@ class HybridDLPEngine(IDLPEngine):
 
         financial_keywords = {"ebitda", "treasury", "margin", "acquisition", "revenue", "dividend", "confidential", "internal only", "proprietary"}
         has_confidential_marker = any(k in normalized_text.lower() for k in financial_keywords) or any(c in normalized_text for c in ["$", "€", "£", "¥"])
-        is_confidential = (raw_tier == "CONFIDENTIAL" and (has_financial or len(resolved_ents) > 0 or has_confidential_marker))
+        sensitive_identifiers = {"CONFIDENTIAL_MARKER", "US_SSN", "PAN_CARD"}
+        has_sensitive_ents = any(e["entity_type"] in sensitive_identifiers for e in resolved_ents)
+        is_confidential = (raw_tier == "CONFIDENTIAL" and (has_financial or has_sensitive_ents or has_confidential_marker))
 
         if raw_tier == "RESTRICTED":
             base_score = 75 if (has_critical or has_financial) else 25
