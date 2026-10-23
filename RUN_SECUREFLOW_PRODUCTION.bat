@@ -60,6 +60,7 @@ echo [1/4] Terminating any stale processes on ports 8000, 9090, and 5174...
 for /f "tokens=5" %%p in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
 for /f "tokens=5" %%p in ('netstat -aon ^| findstr :5174 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
 for /f "tokens=5" %%p in ('netstat -aon ^| findstr :9090 ^| findstr LISTENING 2^>nul') do taskkill /F /PID %%p >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq Desktop Clipboard Agent*" >nul 2>&1
 ping -n 2 127.0.0.1 >nul
 
 echo [2/4] Starting AI Microservice on Port 8000 (FastAPI + ONNX INT8)...
@@ -74,30 +75,35 @@ set /a RETRIES+=1
 .\.venv\Scripts\python.exe -c "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).getcode() == 200 else 1)" >nul 2>&1
 if not errorlevel 1 (
     echo [OK] AI Microservice is HEALTHY and READY.
-    goto LAUNCH_FRONTEND
+    goto LAUNCH_COMPONENTS
 )
 
 if %RETRIES% geq 15 (
     echo [INFO] AI Microservice is initializing in background. Proceeding...
-    goto LAUNCH_FRONTEND
+    goto LAUNCH_COMPONENTS
 )
 
 echo Warming up INT8 model session - attempt %RETRIES% of 15...
 goto WAIT_API
 
-:LAUNCH_FRONTEND
-echo [3/3] Starting Frontend SOC Console on Port 5174 (Vite React)...
+:LAUNCH_COMPONENTS
+echo [3/4] Starting Desktop Clipboard Agent (OS-Level Exfiltration Guard)...
+start "SecureFlow AI - Desktop Clipboard Agent" /min cmd /k "title Desktop Clipboard Agent && cd /d %~dp0 && .\.venv\Scripts\python.exe desktop-agent\main.py"
+
+echo [4/4] Starting Frontend SOC Console on Port 5174 (Vite React)...
 start "SecureFlow AI - Frontend SOC Console (Port 5174)" /min cmd /k "title Frontend SOC Portal (Port 5174) && cd /d %~dp0frontend && npm run dev"
 
 ping -n 3 127.0.0.1 >nul
 
 echo.
 echo ================================================================================
-echo [SUCCESS] SECUREFLOW AI SERVICES ARE RUNNING IN REAL TIME!
+echo [SUCCESS] SECUREFLOW AI ENTERPRISE SUITE IS FULLY RUNNING!
 echo ================================================================================
 echo   - AI Microservice (ONNX INT8):   http://127.0.0.1:8000
+echo   - Desktop Clipboard Guard:       ACTIVE (Background OS Monitor)
 echo   - Live Threat WebSocket Hub:     ws://127.0.0.1:8000/ws/live-threats
 echo   - Admin SOC Console (React):     http://localhost:5174
+echo   - Browser Extension Test Lab:    http://localhost:5174/test_playground.html
 echo ================================================================================
 echo.
 echo Opening default browser to Admin SOC Dashboard (http://localhost:5174)...

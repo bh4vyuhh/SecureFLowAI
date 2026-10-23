@@ -4,8 +4,8 @@ from typing import List
 
 @dataclass
 class AgentConfig:
-    # Gateway API Endpoint (implemented by Spring Boot backend)
-    gateway_url: str = os.getenv("SECUREFLOW_GATEWAY_URL", "http://localhost:9090/api/v1/events/ingest")
+    # Gateway API Endpoint (FastAPI Microservice on Port 8000)
+    gateway_url: str = os.getenv("SECUREFLOW_GATEWAY_URL", "http://127.0.0.1:8000/api/v1/events/ingest")
     
     # Auth token or API key for Gateway
     auth_token: str = os.getenv("SECUREFLOW_AUTH_TOKEN", "")
@@ -18,7 +18,6 @@ class AgentConfig:
     
     # Monitored directories for file system watcher
     watch_directories: List[str] = field(default_factory=lambda: [
-        os.path.expanduser("~/Downloads"),
         os.path.expanduser("~/Documents/SecureFlow_Watch")
     ])
     

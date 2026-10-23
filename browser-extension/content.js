@@ -267,6 +267,14 @@
           "textarea, [contenteditable='true'], input:not([type='hidden']):not([type='submit']):not([type='button']), .ql-editor, div[role='textbox']"
         )
       );
+    } else {
+      // Universal Container / Page Scanner Fallback
+      const container = btn.closest(".container, .card, .box, section, main, article, body") || document.body || document;
+      elementsToScan = Array.from(
+        container.querySelectorAll(
+          "textarea, [contenteditable='true'], input:not([type='hidden']):not([type='submit']):not([type='button']), .ql-editor, div[role='textbox']"
+        )
+      );
     }
 
     // Also include Webmail common selectors if on webmail (Gmail, Outlook, etc.)

@@ -89,13 +89,15 @@ async function handleIngestEvent(eventPayload) {
   const data = await response.json();
 
   if (data.riskScore && data.riskScore > 70) {
-    chrome.notifications.create({
-      type: "basic",
-      iconUrl: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff4d4f'><circle cx='12' cy='12' r='10'/></svg>",
-      title: "🛡️ SecureFlow AI: High Risk Detected",
-      message: `Pasted data on ${eventPayload.metadata?.hostname || 'browser'} flagged (Score: ${data.riskScore}/100)`,
-      priority: 2
-    });
+    try {
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icon128.png",
+        title: "🛡️ SecureFlow AI: High Risk Detected",
+        message: `Sensitive transmission on ${eventPayload.metadata?.hostname || 'browser'} blocked (Risk: ${data.riskScore}/100)`,
+        priority: 2
+      });
+    } catch (_) {}
   }
 
   return data;

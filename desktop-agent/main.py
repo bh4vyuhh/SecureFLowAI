@@ -102,12 +102,6 @@ class SecureFlowDesktopAgent:
             print(f" Risk Score : {risk}/100 | Tier: CONFIDENTIAL", flush=True)
             print(f" Action     : AES-256 Tokenization & Ingestion Logged", flush=True)
             print("-"*76 + "\n", flush=True)
-
-            if self.config.notifications_enabled:
-                self.notifier.notify(
-                    title="CONFIDENTIAL DATA MASKED",
-                    message=f"Risk: {risk}/100. Data masked & tokenized in cryptographic vault."
-                )
         else:
             print(f" [DLP AUDIT: SAFE] {src} content verified clean (Risk: {risk}/100, Tier: SAFE). Allowed.", flush=True)
 
@@ -137,9 +131,6 @@ class SecureFlowDesktopAgent:
         # Start file watcher thread
         fs_thread = threading.Thread(target=self.file_watcher.start, daemon=True)
         fs_thread.start()
-
-        if self.config.notifications_enabled:
-            self.notifier.notify("Agent Active", "SecureFlow AI desktop monitoring active.")
 
         try:
             while True:
