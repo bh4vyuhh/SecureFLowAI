@@ -229,10 +229,11 @@
 
     <!-- SCENARIO 1: EMAIL CLIENT TRANSMISSION BLOCKING -->
     <div class="card email-composer" role="region" aria-label="Email Composer Simulation">
-      <h2>📧 Scenario 1: Webmail / Email Client Exfiltration Guard (e.g. Gmail / Outlook)</h2>
+      <h2>📧 Scenario 1: Webmail & Email Client Exfiltration Guard (Actual Gmail & Outlook Engine)</h2>
       <p>
-        Simulates sending an external email via webmail. Try pasting or typing a credit card, SSN, or IBAN into the
-        Email Message Body, then click <strong>"Send Email"</strong>.
+        Simulates sending an external email via actual webmail (Gmail, Outlook). The box below uses Gmail's exact 
+        <code>contenteditable="true"</code> rich-text structure. Try typing or pasting a card, SSN, password, or key, 
+        then press <strong>Ctrl+Enter</strong> or click <strong>"Send"</strong>.
       </p>
 
       <div class="form-group">
@@ -246,15 +247,26 @@
       </div>
 
       <div class="form-group">
-        <label>Email Message Body (Contenteditable or Textarea):</label>
-        <textarea id="email-body" rows="4" placeholder="Try typing or pasting sensitive financial records here..."></textarea>
+        <label>Email Message Body (Gmail-identical rich-text contenteditable div):</label>
+        <div id="gmail-body-sim" class="Am Al editable" role="textbox" aria-label="Message Body" contenteditable="true" style="min-height: 90px; padding: 12px; background: #0c0e17; border: 1px solid #334155; border-radius: 6px; color: #f8fafc; font-family: sans-serif; font-size: 14px; outline: none;">
+          <div>Hi team,</div>
+          <div>Please review the payment details below:</div>
+          <div><br></div>
+        </div>
       </div>
 
-      <button type="button" id="btn-send-email" aria-label="Send" class="email-btn" onclick="simulateEmailSend()">
-        📨 Send Email (Tests Webmail Send Interceptor)
-      </button>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <!-- Gmail Send Button Replica -->
+        <div role="button" id="gmail-send-btn" class="T-I J-J5-Ji aoO v7 T-I-atl L3 email-btn" aria-label="Send (Ctrl-Enter)" data-tooltip="Send (Ctrl-Enter)" onclick="simulateEmailSend()" style="cursor: pointer; display: inline-block;">
+          📨 Send (Gmail aoO Button &bull; Ctrl+Enter)
+        </div>
 
-      <div class="status-box" id="email-status" style="display: none;"></div>
+        <button type="button" id="btn-send-email" aria-label="Send" class="email-btn" onclick="simulateEmailSend()">
+          ✉️ Send (Standard Button)
+        </button>
+      </div>
+
+      <div class="status-box" id="email-status" style="display: none; margin-top: 14px;"></div>
     </div>
 
     <!-- SCENARIO 2: STANDARD HTML FORM SUBMISSION -->

@@ -1,6 +1,6 @@
 // =============================================================================
 // SecureFlow AI - Enterprise Client Browser DLP Agent (Manifest V3 Content Script)
-// Universal Form Submission, Webmail, Chat, Keystroke, and Paste Interceptor
+// Universal Form Submission, Webmail (Gmail, Outlook), Chat, Keystroke & File Guard
 // =============================================================================
 
 (function () {
@@ -23,7 +23,8 @@
     PAN_CARD: /\b[A-Z]{5}[0-9]{4}[A-Z]\b/,
     AADHAAR: /\b\d{4}[ -]\d{4}[ -]\d{4}\b/,
     API_KEY: /\b(?:sk-[a-zA-Z0-9_\-]{20,}|gh[pousr]_[0-9a-zA-Z]{36}|AIza[0-9A-Za-z\-_]{35}|xox[baprs]-[0-9a-zA-Z]{10,48}|hf_[0-9a-zA-Z]{34,}|AKIA[0-9A-Z]{16})\b/i,
-    PASSWORD_SECRET: /(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key)[\s:=]+([^\s,;'"<>]{5,})/i,
+    PASSWORD_SECRET: /(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key|passcode|passphrase)[\s:=]+([^\s,;'"<>]{4,})/i,
+    PLAIN_PASSWORD: /\b(?:my\s+)?(?:password|secret|passcode)\s+(?:is|:)\s*([^\s,;'"<>]{4,})/i,
     BEARER_TOKEN: /\bBearer\s+[a-zA-Z0-9_\-\.]{25,}\b/,
     JWT_TOKEN: /\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b/,
     DB_CONN: /\b(?:postgres|postgresql|mysql|mongodb|redis|mssql|jdbc):\/\/[^\s"']+:[^\s"']+@[^\s"']+\b/i,
@@ -52,7 +53,7 @@
     if (!text || typeof text !== "string") return [];
     const hits = [];
 
-    // Credit Card: Valid Luhn OR grouped 15-16 digit sequence OR digits with card context
+    // Credit Card: Valid Luhn OR grouped 15-16 digit sequence OR digits with card context OR 16 digits
     const cardMatch = text.match(DLP_PATTERNS.CREDIT_CARD);
     if (cardMatch) {
       const rawCard = cardMatch[0];
@@ -70,10 +71,11 @@
     if (DLP_PATTERNS.AADHAAR.test(text)) hits.push("National Identity / UID");
     if (DLP_PATTERNS.IBAN.test(text)) hits.push("IBAN Bank Account");
     if (DLP_PATTERNS.BANK_ACCOUNT.test(text)) hits.push("Bank Account Number");
+    if (DLP_PATTERNS.ABA_ROUTING.test(text)) hits.push("ABA Routing Number");
     if (DLP_PATTERNS.SWIFT_BIC.test(text)) hits.push("SWIFT / BIC");
     if (DLP_PATTERNS.PRIVATE_KEY.test(text)) hits.push("Cryptographic Private Key");
     if (DLP_PATTERNS.API_KEY.test(text)) hits.push("Live API Credential");
-    if (DLP_PATTERNS.PASSWORD_SECRET.test(text)) hits.push("Exposed Password / Secret");
+    if (DLP_PATTERNS.PASSWORD_SECRET.test(text) || DLP_PATTERNS.PLAIN_PASSWORD.test(text)) hits.push("Exposed Password / Secret");
     if (DLP_PATTERNS.BEARER_TOKEN.test(text) || DLP_PATTERNS.JWT_TOKEN.test(text)) hits.push("Authentication Token");
     if (DLP_PATTERNS.DB_CONN.test(text)) hits.push("Database Connection String");
     if (DLP_PATTERNS.CONFIDENTIAL.test(text)) hits.push("Confidential Document Marker");
@@ -82,11 +84,20 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 2. Universal Element Text Collector & Shadow-DOM Traversal
+  // 2. Universal Element Text Collector & Top-Level Compose Container Resolution
   // ---------------------------------------------------------------------------
+  function getTopEditableContainer(el) {
+    if (!el || el.nodeType !== 1) return null;
+    return el.closest(
+      "div[aria-label*='Message Body' i], div[aria-label*='Message body' i], div.Am.Al.editable, [contenteditable='true'], [role='textbox'], .ql-editor, .ProseMirror, [data-slate-editor='true'], rich-textarea, .editable"
+    );
+  }
+
   function getElementValueOrText(el) {
     if (!el) return "";
-    if (typeof el.value === "string") return el.value;
+    if (typeof el.value === "string" && el.tagName !== "DIV" && el.tagName !== "SPAN") {
+      return el.value;
+    }
     if (el.shadowRoot) {
       const inner = el.shadowRoot.querySelector("textarea, input, [contenteditable='true'], .ql-editor, p");
       if (inner) return getElementValueOrText(inner);
@@ -96,17 +107,43 @@
 
   function getDeepTextAndElement(event) {
     const path = (event && typeof event.composedPath === "function") ? event.composedPath() : [];
+    const target = (event && event.target) ? event.target : document.activeElement;
 
+    // 1. Resolve to outermost editable container if user is inside a rich composer (Gmail, Outlook, Slack, etc.)
     for (let el of path) {
       if (!el || el.nodeType !== 1) continue;
-      const val = getElementValueOrText(el).trim();
+      const topContainer = getTopEditableContainer(el);
+      if (topContainer) {
+        const text = (topContainer.innerText || topContainer.textContent || "").trim();
+        if (text.length >= 5) {
+          return { element: topContainer, text: text };
+        }
+      }
+    }
+
+    if (target && target.nodeType === 1) {
+      const topContainer = getTopEditableContainer(target);
+      if (topContainer) {
+        const text = (topContainer.innerText || topContainer.textContent || "").trim();
+        if (text.length >= 5) {
+          return { element: topContainer, text: text };
+        }
+      }
+      const val = getElementValueOrText(target).trim();
       if (val.length >= 5) {
-        return { element: el, text: val };
+        return { element: target, text: val };
       }
     }
 
     const active = document.activeElement;
-    if (active) {
+    if (active && active.nodeType === 1) {
+      const topContainer = getTopEditableContainer(active);
+      if (topContainer) {
+        const text = (topContainer.innerText || topContainer.textContent || "").trim();
+        if (text.length >= 5) {
+          return { element: topContainer, text: text };
+        }
+      }
       const aVal = getElementValueOrText(active).trim();
       if (aVal.length >= 5) {
         return { element: active, text: aVal };
@@ -119,9 +156,7 @@
       if (gTxt.length >= 5) return { element: richTextarea, text: gTxt };
     }
 
-    const fallbackEl = (event && event.target) ? event.target : active;
-    const fbText = getElementValueOrText(fallbackEl).trim();
-    return { element: fallbackEl, text: fbText };
+    return { element: target || active, text: "" };
   }
 
   // ---------------------------------------------------------------------------
@@ -130,7 +165,6 @@
   function inspectElementsCollection(elements) {
     for (let el of elements) {
       if (!el || el.nodeType !== 1) continue;
-      // Skip hidden or submit buttons themselves
       if (el.type === "hidden" || el.type === "submit" || el.type === "button") continue;
 
       const txt = getElementValueOrText(el).trim();
@@ -151,9 +185,9 @@
     const form = targetElement.closest("form");
     if (form) return { type: "form", container: form };
 
-    // B. Check if target is inside an email composer or modal dialog
+    // B. Check if target is inside an email composer, modal dialog, or chat container
     const composer = targetElement.closest(
-      "[role='dialog'], [role='region'], .compose, .composer, .Am.Al, .modal, .chat-input, .msg-form, .email-composer"
+      "[role='dialog'], [role='region'], .compose, .composer, .Am.Al, .modal, .chat-input, .msg-form, .email-composer, table.Ao, div.AD, div.nH, div.M9, div.inboxsdk__compose"
     );
     if (composer) return { type: "composer", container: composer };
 
@@ -224,16 +258,23 @@
   document.addEventListener("submit", handleFormSubmit, true);
 
   // ---------------------------------------------------------------------------
-  // 5. BUTTON CLICK INTERCEPTION (Send, Submit, Post, Emails, Web Apps)
+  // 5. BUTTON CLICK INTERCEPTION (Gmail Send, Outlook, Google Forms, Web Apps)
   // ---------------------------------------------------------------------------
   function isSendOrSubmitButton(el) {
     if (!el || el.nodeType !== 1) return false;
+
+    // Look for button or clickable element in hierarchy
     const btn = el.closest(
-      "button, [role='button'], input[type='submit'], input[type='button'], a[role='button']"
+      "button, [role='button'], input[type='submit'], input[type='button'], a[role='button'], .aoO, .T-I-atl, [data-tooltip*='Send' i], [aria-label*='Send' i], [data-tooltip*='Ctrl-Enter' i], [aria-label*='Ctrl-Enter' i], [data-qa*='send' i], [data-testid*='send' i], [data-testid*='tweetButton' i]"
     );
     if (!btn) return false;
 
-    // Check common attributes for send / submit
+    // A. Gmail Send Button explicit class signature (.aoO is Gmail's permanent Send button class)
+    if (btn.classList && (btn.classList.contains("aoO") || btn.classList.contains("T-I-atl"))) {
+      return btn;
+    }
+
+    // B. Check attributes across all standard web applications
     const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
     const tooltip = (btn.getAttribute("data-tooltip") || "").toLowerCase();
     const title = (btn.getAttribute("title") || "").toLowerCase();
@@ -244,52 +285,52 @@
     const matchesSend =
       aria.includes("send") ||
       aria.includes("submit") ||
+      aria.includes("ctrl-enter") ||
       tooltip.includes("send") ||
       tooltip.includes("submit") ||
+      tooltip.includes("ctrl-enter") ||
       title.includes("send") ||
       title.includes("submit") ||
+      title.includes("ctrl-enter") ||
       btnId.includes("send") ||
       btnId.includes("submit") ||
       btnClass.includes("send") ||
       btnClass.includes("submit") ||
+      btnClass.includes("aoo") ||
       btn.type === "submit" ||
-      /^(send|submit|post|publish|share|tweet|reply|transfer|pay|checkout)$/i.test(btnText) ||
+      /^(send|submit|post|publish|share|tweet|reply|transfer|pay|checkout|confirm|next|save|envoyer|enviar|senden)$/i.test(btnText) ||
       /\b(send|submit)\b/i.test(btnText);
 
     return matchesSend ? btn : false;
   }
 
-  function handleClick(event) {
+  function interceptSendAttempt(event, triggerType) {
     const btn = isSendOrSubmitButton(event.target);
-    if (!btn) return;
+    if (!btn) return false;
 
     let elementsToScan = [];
-    const context = findComposeOrFormContext(btn);
 
+    // 1. Check parent compose dialog / form container
+    const context = findComposeOrFormContext(btn);
     if (context && context.container) {
       elementsToScan = Array.from(
         context.container.querySelectorAll(
-          "textarea, [contenteditable='true'], input:not([type='hidden']):not([type='submit']):not([type='button']), .ql-editor, div[role='textbox']"
-        )
-      );
-    } else {
-      // Universal Container / Page Scanner Fallback
-      const container = btn.closest(".container, .card, .box, section, main, article, body") || document.body || document;
-      elementsToScan = Array.from(
-        container.querySelectorAll(
-          "textarea, [contenteditable='true'], input:not([type='hidden']):not([type='submit']):not([type='button']), .ql-editor, div[role='textbox']"
+          "textarea, [contenteditable='true'], input:not([type='hidden']):not([type='submit']):not([type='button']), .ql-editor, div[role='textbox'], .Am.Al"
         )
       );
     }
 
-    // Also include Webmail common selectors if on webmail (Gmail, Outlook, etc.)
+    // 2. Also always scan common webmail compose bodies (Gmail, Outlook, etc.)
     const webmailSelectors = [
-      "div[aria-label='Message Body']",
+      "div[aria-label*='Message Body' i]",
+      "div[aria-label*='Message body' i]",
       "div.Am.Al.editable",
-      "div[aria-label='Message body']",
+      "div[role='textbox'][contenteditable='true']",
       "#prompt-textarea",
       "rich-textarea",
-      "div[role='textbox'][contenteditable='true']",
+      ".ql-editor",
+      ".ProseMirror",
+      "[data-slate-editor='true']"
     ];
     for (let sel of webmailSelectors) {
       const matched = document.querySelectorAll(sel);
@@ -298,9 +339,19 @@
       });
     }
 
-    // Fallback: Check document.activeElement
+    // 3. Include document.activeElement
     if (document.activeElement && !elementsToScan.includes(document.activeElement)) {
       elementsToScan.push(document.activeElement);
+    }
+
+    // 4. Universal page fallback if no elements found yet
+    if (elementsToScan.length === 0) {
+      const container = btn.closest(".container, .card, .box, section, main, article, body") || document.body || document;
+      elementsToScan = Array.from(
+        container.querySelectorAll(
+          "textarea, [contenteditable='true'], input:not([type='hidden']):not([type='submit']):not([type='button']), .ql-editor, div[role='textbox']"
+        )
+      );
     }
 
     const result = inspectElementsCollection(elementsToScan);
@@ -312,22 +363,102 @@
       highlightAndBlock(
         result.offendingElement,
         result.detected,
-        "Transmission Blocked (Send Button)",
+        `Transmission Blocked (${triggerType})`,
         "BUTTON_CLICK_ATTEMPT",
         result.text
       );
-      return false;
+      return true;
     }
+    return false;
   }
 
-  window.addEventListener("click", handleClick, true);
-  document.addEventListener("click", handleClick, true);
+  // Intercept click, pointerdown, and mousedown in capture phase to preempt webmail handlers
+  window.addEventListener("click", (e) => interceptSendAttempt(e, "Send Button"), true);
+  document.addEventListener("click", (e) => interceptSendAttempt(e, "Send Button"), true);
+  window.addEventListener("mousedown", (e) => interceptSendAttempt(e, "Send MouseDown"), true);
+  document.addEventListener("mousedown", (e) => interceptSendAttempt(e, "Send MouseDown"), true);
+  window.addEventListener("pointerdown", (e) => interceptSendAttempt(e, "Send PointerDown"), true);
+  document.addEventListener("pointerdown", (e) => interceptSendAttempt(e, "Send PointerDown"), true);
 
   // ---------------------------------------------------------------------------
-  // 6. ENTER-KEY TRANSMISSION INTERCEPTION (Chat, Prompts, Webmail, Forms)
+  // 6. KEYBOARD SHORTCUT & ENTER-KEY TRANSMISSION INTERCEPTION
   // ---------------------------------------------------------------------------
   function handleKeyDown(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    const isEnter = event.key === "Enter" || event.keyCode === 13;
+    if (!isEnter) return;
+
+    const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+    const isShift = event.shiftKey;
+
+    // A. Ctrl+Enter or Cmd+Enter: Standard Send shortcut in Gmail, Outlook, LinkedIn, Slack, etc.
+    if (isCtrlOrCmd) {
+      const { element, text } = getDeepTextAndElement(event);
+      let detected = detectSensitivePii(text);
+
+      let offendingEl = element;
+      let offendingText = text;
+
+      // If not detected in immediate focused element, check all open composers on the page
+      if (detected.length === 0) {
+        const composers = document.querySelectorAll(
+          "div[aria-label*='Message Body' i], div[aria-label*='Message body' i], div.Am.Al.editable, [contenteditable='true'][role='textbox'], .ql-editor, .ProseMirror"
+        );
+        for (let comp of composers) {
+          const compTxt = (comp.innerText || comp.textContent || "").trim();
+          const hits = detectSensitivePii(compTxt);
+          if (hits.length > 0) {
+            detected = hits;
+            offendingEl = comp;
+            offendingText = compTxt;
+            break;
+          }
+        }
+      }
+
+      if (detected.length > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+
+        highlightAndBlock(
+          offendingEl,
+          detected,
+          "Email Transmission Blocked (Ctrl+Enter Send)",
+          "KEYBOARD_SHORTCUT_SEND",
+          offendingText
+        );
+        return false;
+      }
+    }
+
+    // B. Plain Enter (without Shift) in single-line inputs, chatboxes, or forms
+    if (!isCtrlOrCmd && !isShift) {
+      const target = event.target || document.activeElement;
+
+      // If inside a <form> (e.g. Google Forms), check ALL form inputs before allowing Enter submission
+      if (target && target.closest) {
+        const form = target.closest("form");
+        if (form) {
+          const inputs = form.querySelectorAll("input, textarea, select, [contenteditable='true']");
+          const result = inspectElementsCollection(inputs);
+          if (result) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
+            highlightAndBlock(
+              result.offendingElement,
+              result.detected,
+              "Form Submission Blocked (Enter Key)",
+              "FORM_ENTER_SUBMIT",
+              result.text
+            );
+            return false;
+          }
+        }
+      }
+
+      // Check current element (e.g. Chatbox, AI prompt, single input)
       const { element, text } = getDeepTextAndElement(event);
       if (text && text.length >= 5) {
         const detected = detectSensitivePii(text);
@@ -388,7 +519,7 @@
   document.addEventListener("paste", handlePaste, true);
 
   // ---------------------------------------------------------------------------
-  // 8. REAL-TIME TYPING BADGE (Debounced 350ms, Visual border only)
+  // 8. REAL-TIME TYPING BADGE (Debounced 350ms, Visual border warning)
   // ---------------------------------------------------------------------------
   let typingTimer = null;
   const TYPING_DEBOUNCE_MS = 350;
@@ -432,7 +563,8 @@
   function inspectFileObject(file, sourceElement) {
     if (!file) return;
 
-    if (file.type.startsWith("text/") || /\.(txt|csv|log|json|xml|md|sql|env|ini|conf)$/i.test(file.name)) {
+    // Scan any document or file up to 15MB
+    if (file.size <= 15 * 1024 * 1024) {
       const reader = new FileReader();
       reader.onload = function (e) {
         const text = e.target.result || "";
@@ -492,6 +624,13 @@
         try { el.value = ""; el.files = new DataTransfer().files; } catch (_) {}
       }
     });
+  });
+
+  // Relay Kernel-Level Audit Events from network_guard.js to Port 8000 (Exempt from Page CSP)
+  window.addEventListener("message", function (event) {
+    if (event.data && event.data.type === "SECUREFLOW_PAGE_AUDIT_EVENT") {
+      safeDispatchEvent(event.data.payload);
+    }
   });
 
   // Inject Main-World Network Guard if not already active
