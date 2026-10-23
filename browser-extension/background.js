@@ -1,6 +1,12 @@
+// =============================================================================
+// SecureFlow AI - Background Service Worker (Manifest V3)
+// Relays Telemetry & AI Model Inspections to Port 8000 (Exempt from Page CSP)
+// =============================================================================
+
 const DEFAULT_GATEWAY_URL = "http://127.0.0.1:8000/api/v1/events/ingest";
-const DIRECT_AI_SERVICE_URL = "http://127.0.0.1:8000/api/v1/events/ingest";
-const LOCALHOST_FALLBACK_URL = "http://localhost:8000/api/v1/events/ingest";
+const LOCALHOST_GATEWAY_URL = "http://localhost:8000/api/v1/events/ingest";
+const DEFAULT_SCAN_URL = "http://127.0.0.1:8000/api/v1/scan/dlp";
+const LOCALHOST_SCAN_URL = "http://localhost:8000/api/v1/scan/dlp";
 const MAX_LOCAL_EVENTS = 50;
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -17,6 +23,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // 1. Ingest Event Telemetry Dispatch
   if (request.type === "SECUREFLOW_INGEST_EVENT") {
     handleIngestEvent(request.payload)
       .then(result => sendResponse(result))
@@ -26,8 +33,82 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     return true; 
   }
+
+  // 2. Real-Time Deep AI Neural Model Scan via /api/v1/scan/dlp
+  if (request.type === "SECUREFLOW_AI_SCAN") {
+    handleAiScan(request.payload)
+      .then(result => sendResponse(result))
+      .catch(err => {
+        console.error("[SecureFlow Service Worker] AI Model Scan error:", err);
+        sendResponse({ status: "error", message: err.message });
+      });
+    return true;
+  }
 });
 
+// -----------------------------------------------------------------------------
+// Real-Time Deep AI Scan Handler (Queries ONNX HybridDLPEngine on Port 8000)
+// -----------------------------------------------------------------------------
+async function handleAiScan(payload) {
+  if (!payload || !payload.text || payload.text.trim().length < 8) {
+    return { status: "ignored", reason: "too_short" };
+  }
+
+  const scanBody = {
+    client_id: "browser-extension",
+    user_id: payload.userId || "employee@secureflow.ai",
+    department: payload.department || "corporate",
+    destination_domain: payload.destinationDomain || "browser",
+    source_action: payload.sourceAction || "prompt_injection",
+    text: payload.text,
+    mode: "mask"
+  };
+
+  const headers = {
+    "Content-Type": "application/json",
+    "X-Capture-Source": "SecureFlow-BrowserExt-AI-Worker"
+  };
+
+  let response = null;
+  try {
+    response = await fetch(DEFAULT_SCAN_URL, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(scanBody)
+    });
+  } catch (err) {
+    try {
+      response = await fetch(LOCALHOST_SCAN_URL, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(scanBody)
+      });
+    } catch (fallbackErr) {
+      console.warn("[SecureFlow Service Worker] AI scan endpoint unreachable:", fallbackErr.message);
+      return { status: "offline", error: fallbackErr.message };
+    }
+  }
+
+  if (!response || !response.ok) {
+    return { status: "error", httpStatus: response ? response.status : 0 };
+  }
+
+  const result = await response.json();
+  return {
+    status: "success",
+    tier: result.classification_tier,         // "SAFE", "CONFIDENTIAL", "RESTRICTED"
+    riskScore: result.risk_score,             // 0-100
+    action: result.enforcement_action,        // "ALLOW", "MASK", "BLOCK"
+    entities: result.detected_entities || [],
+    threatCategory: result.threat_category,
+    explanation: result.explanation,
+    complianceImpact: result.compliance_impact || []
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Event Ingestion Handler
+// -----------------------------------------------------------------------------
 async function handleIngestEvent(eventPayload) {
   const { monitoringEnabled, gatewayUrl, recentAlerts = [], authToken } = 
     await chrome.storage.local.get(["monitoringEnabled", "gatewayUrl", "recentAlerts", "authToken"]);
@@ -70,7 +151,7 @@ async function handleIngestEvent(eventPayload) {
     });
   } catch (err) {
     try {
-      response = await fetch(LOCALHOST_FALLBACK_URL, {
+      response = await fetch(LOCALHOST_GATEWAY_URL, {
         method: "POST",
         headers: headers,
         body: JSON.stringify(eventPayload)

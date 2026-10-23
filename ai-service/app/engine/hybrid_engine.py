@@ -163,14 +163,22 @@ class HybridDLPEngine(IDLPEngine):
         financial_identifiers = {"IBAN", "ABA_ROUTING", "SWIFT_BIC", "BANK_ACCOUNT"}
         has_financial = any(e["entity_type"] in financial_identifiers for e in resolved_ents)
 
-        financial_keywords = {"ebitda", "treasury", "margin", "acquisition", "revenue", "dividend", "confidential", "internal only", "proprietary"}
+        financial_keywords = {
+            "ebitda", "treasury", "margin", "acquisition", "revenue", "dividend",
+            "confidential", "internal only", "proprietary", "salary", "payroll",
+            "compensation", "restricted", "merger", "trade secret", "secret"
+        }
         has_confidential_marker = any(k in normalized_text.lower() for k in financial_keywords) or any(c in normalized_text for c in ["$", "€", "£", "¥"])
         sensitive_identifiers = {"CONFIDENTIAL_MARKER", "US_SSN", "PAN_CARD"}
         has_sensitive_ents = any(e["entity_type"] in sensitive_identifiers for e in resolved_ents)
-        is_confidential = (raw_tier == "CONFIDENTIAL" and (has_financial or has_sensitive_ents or has_confidential_marker))
+        is_confidential = (
+            (raw_tier == "CONFIDENTIAL" and (has_financial or has_sensitive_ents or has_confidential_marker))
+            or (raw_tier != "SAFE" and has_sensitive_ents)
+            or any(e["entity_type"] == "CONFIDENTIAL_MARKER" for e in resolved_ents)
+        )
 
         if raw_tier == "RESTRICTED":
-            base_score = 75 if (has_critical or has_financial) else 25
+            base_score = 75 if (has_critical or has_financial or has_sensitive_ents) else 50
         elif is_confidential:
             base_score = 50
         else:

@@ -1,7 +1,7 @@
 // =============================================================================
 // SecureFlow AI - Enterprise Client Browser DLP Agent (Manifest V3 Content Script)
 // Universal Form Submission, Webmail (Gmail, Outlook), Chat (Gemini, ChatGPT, Claude),
-// Keystroke & File Upload Guard
+// Keystroke & File Upload Guard Powered by Hybrid AI Model + Deterministic Checksums
 // =============================================================================
 
 (function () {
@@ -14,7 +14,7 @@
   }
 
   console.log(
-    "%c[SecureFlow AI]%c DLP Browser Agent Initialized (v2.1 Production-Ready Universal Guard).",
+    "%c[SecureFlow AI]%c DLP Browser Agent Initialized (v2.2 AI Model + Real-Time Engine Active).",
     "color: #8df85f; font-weight: bold;",
     "color: inherit;"
   );
@@ -40,7 +40,7 @@
     JWT_TOKEN: /\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b/,
     DB_CONN: /\b(?:postgres|postgresql|mysql|mongodb|redis|mssql|jdbc):\/\/[^\s"']+:[^\s"']+@[^\s"']+\b/i,
     PRIVATE_KEY: /-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----/i,
-    CONFIDENTIAL: /\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TOP SECRET|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT|PROPRIETARY AND CONFIDENTIAL)\b/i,
+    CONFIDENTIAL: /\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TOP SECRET|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT|RESTRICTED DATA|RESTRICTED|SALARY|PAYROLL|EMPLOYEE COMPENSATION|PROPRIETARY AND CONFIDENTIAL|PROPRIETARY)\b/i,
   };
 
   function luhnCheck(cardStr) {
@@ -95,7 +95,95 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 2. Universal Element Text Extraction (Google Gemini, Quill, ProseMirror, Shadow DOM)
+  // 2. AI Neural Model Integration & Query Cache (/api/v1/scan/dlp on Port 8000)
+  // ---------------------------------------------------------------------------
+  const aiScanCache = new Map();
+  const MAX_CACHE_SIZE = 150;
+
+  function getFromAiCache(text) {
+    if (!text) return null;
+    return aiScanCache.get(text.trim());
+  }
+
+  function setInAiCache(text, result) {
+    if (!text || !result) return;
+    if (aiScanCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = aiScanCache.keys().next().value;
+      aiScanCache.delete(firstKey);
+    }
+    aiScanCache.set(text.trim(), result);
+  }
+
+  async function queryAiDlpModel(text) {
+    if (!text || text.trim().length < 8) return null;
+    const cleanText = text.trim();
+
+    const cached = getFromAiCache(cleanText);
+    if (cached) return cached;
+
+    // A. Query via Background Service Worker (Bypasses any page CSP)
+    try {
+      if (typeof chrome !== "undefined" && chrome.runtime && typeof chrome.runtime.sendMessage === "function") {
+        const response = await new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              type: "SECUREFLOW_AI_SCAN",
+              payload: {
+                text: cleanText,
+                destinationDomain: window.location.hostname,
+                sourceAction: "prompt_injection"
+              }
+            },
+            (res) => {
+              if (chrome.runtime && chrome.runtime.lastError) {
+                resolve(null);
+              } else {
+                resolve(res);
+              }
+            }
+          );
+        });
+
+        if (response && response.status === "success") {
+          setInAiCache(cleanText, response);
+          return response;
+        }
+      }
+    } catch (_) {}
+
+    // B. Direct Fallback Query to FastAPI Port 8000
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/v1/scan/dlp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: "browser-ext-direct",
+          destination_domain: window.location.hostname,
+          text: cleanText,
+          mode: "mask"
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = {
+          status: "success",
+          tier: data.classification_tier,
+          riskScore: data.risk_score,
+          action: data.enforcement_action,
+          entities: data.detected_entities || [],
+          threatCategory: data.threat_category,
+          explanation: data.explanation
+        };
+        setInAiCache(cleanText, formatted);
+        return formatted;
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. Universal Element Text Extraction (Google Gemini, Quill, ProseMirror, Shadow DOM)
   // ---------------------------------------------------------------------------
   function getTopEditableContainer(el) {
     if (!el || el.nodeType !== 1) return null;
@@ -226,7 +314,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Scan Multiple Elements (Forms, Email Composers, Chat Boxes)
+  // 4. Scan Multiple Elements (Forms, Email Composers, Chat Boxes)
   // ---------------------------------------------------------------------------
   function inspectElementsCollection(elements) {
     for (let el of elements) {
@@ -236,8 +324,15 @@
       const txt = getElementValueOrText(el).trim();
       if (txt.length >= 5) {
         const detected = detectSensitivePii(txt);
+        const cachedAi = getFromAiCache(txt);
         if (detected.length > 0) {
           return { offendingElement: el, text: txt, detected };
+        }
+        if (cachedAi && (cachedAi.tier === "RESTRICTED" || cachedAi.tier === "CONFIDENTIAL" || cachedAi.action !== "ALLOW")) {
+          const aiReasons = [
+            `AI Model: ${cachedAi.threatCategory?.replace(/_/g, " ") || cachedAi.tier} (${cachedAi.riskScore}% Risk)`
+          ];
+          return { offendingElement: el, text: txt, detected: aiReasons };
         }
       }
     }
@@ -260,17 +355,38 @@
     return null;
   }
 
-  function highlightAndBlock(element, detected, contextTitle, triggerType, textContent) {
-    // Remove typing warning badge if active
-    removeTypingWarningBadge();
-
-    // Resolve visible container for outline
+  function applyElementHighlight(element) {
     const visibleContainer =
       element?.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
 
     if (visibleContainer && visibleContainer.style) {
-      visibleContainer.style.outline = "3px solid #ff4d4f";
-      visibleContainer.style.boxShadow = "0 0 25px rgba(255, 77, 79, 0.85)";
+      visibleContainer.style.outline = "2.5px solid #ff4d4f";
+      visibleContainer.style.boxShadow = "0 0 18px rgba(255, 77, 79, 0.6)";
+      visibleContainer.dataset.sfFlagged = "true";
+    }
+  }
+
+  function clearElementHighlight(element) {
+    if (!element) return;
+    const visibleContainer =
+      element?.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
+
+    if (visibleContainer && visibleContainer.dataset && visibleContainer.dataset.sfFlagged) {
+      visibleContainer.style.outline = "";
+      visibleContainer.style.boxShadow = "";
+      delete visibleContainer.dataset.sfFlagged;
+    }
+  }
+
+  function highlightAndBlock(element, detected, contextTitle, triggerType, textContent) {
+    removeTypingWarningBadge();
+
+    const visibleContainer =
+      element?.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
+
+    if (visibleContainer && visibleContainer.style) {
+      visibleContainer.style.outline = "3.5px solid #ff4d4f";
+      visibleContainer.style.boxShadow = "0 0 28px rgba(255, 77, 79, 0.85)";
       visibleContainer.dataset.sfFlagged = "true";
       try { visibleContainer.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
     }
@@ -302,7 +418,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 4. FORM SUBMISSION INTERCEPTION (Intercepts all HTML Forms)
+  // 5. FORM SUBMISSION INTERCEPTION (Intercepts all HTML Forms)
   // ---------------------------------------------------------------------------
   function handleFormSubmit(event) {
     const form = event.target;
@@ -331,7 +447,7 @@
   document.addEventListener("submit", handleFormSubmit, true);
 
   // ---------------------------------------------------------------------------
-  // 5. BUTTON CLICK INTERCEPTION (Gemini, ChatGPT, Claude, Gmail, Outlook, Forms)
+  // 6. BUTTON CLICK INTERCEPTION (Gemini, ChatGPT, Claude, Gmail, Outlook, Forms)
   // ---------------------------------------------------------------------------
   function isSendOrSubmitButton(el) {
     if (!el || el.nodeType !== 1) return false;
@@ -455,7 +571,7 @@
   document.addEventListener("pointerdown", (e) => interceptSendAttempt(e, "Send PointerDown"), true);
 
   // ---------------------------------------------------------------------------
-  // 6. KEYBOARD SHORTCUT & ENTER-KEY TRANSMISSION INTERCEPTION
+  // 7. KEYBOARD SHORTCUT & ENTER-KEY TRANSMISSION INTERCEPTION
   // ---------------------------------------------------------------------------
   function handleKeyDown(event) {
     const isEnter = event.key === "Enter" || event.keyCode === 13;
@@ -469,6 +585,11 @@
       const { element, text } = getDeepTextAndElement(event);
       let detected = detectSensitivePii(text);
 
+      const cachedAi = getFromAiCache(text);
+      if (detected.length === 0 && cachedAi && (cachedAi.tier === "RESTRICTED" || cachedAi.tier === "CONFIDENTIAL" || cachedAi.action !== "ALLOW")) {
+        detected = [`AI Model: ${cachedAi.threatCategory?.replace(/_/g, " ") || cachedAi.tier} (${cachedAi.riskScore}% Risk)`];
+      }
+
       let offendingEl = element;
       let offendingText = text;
 
@@ -480,8 +601,9 @@
         for (let comp of composers) {
           const compTxt = getElementValueOrText(comp).trim();
           const hits = detectSensitivePii(compTxt);
-          if (hits.length > 0) {
-            detected = hits;
+          const compAi = getFromAiCache(compTxt);
+          if (hits.length > 0 || (compAi && compAi.tier !== "SAFE" && compAi.action !== "ALLOW")) {
+            detected = hits.length > 0 ? hits : [`AI Model: ${compAi.threatCategory?.replace(/_/g, " ") || compAi.tier} (${compAi.riskScore}% Risk)`];
             offendingEl = comp;
             offendingText = compTxt;
             break;
@@ -535,7 +657,12 @@
       // Check current element (e.g. Gemini prompt, ChatGPT prompt, Chatbox, single input)
       const { element, text } = getDeepTextAndElement(event);
       if (text && text.length >= 5) {
-        const detected = detectSensitivePii(text);
+        let detected = detectSensitivePii(text);
+        const cachedAi = getFromAiCache(text);
+        if (detected.length === 0 && cachedAi && (cachedAi.tier === "RESTRICTED" || cachedAi.tier === "CONFIDENTIAL" || cachedAi.action !== "ALLOW")) {
+          detected = [`AI Model: ${cachedAi.threatCategory?.replace(/_/g, " ") || cachedAi.tier} (${cachedAi.riskScore}% Risk)`];
+        }
+
         if (detected.length > 0) {
           event.preventDefault();
           event.stopPropagation();
@@ -558,7 +685,7 @@
   document.addEventListener("keydown", handleKeyDown, true);
 
   // ---------------------------------------------------------------------------
-  // 7. CLIPBOARD PASTE INTERCEPTION (Instant Zero-Exfiltration Intercept)
+  // 8. CLIPBOARD PASTE INTERCEPTION (Instant Zero-Exfiltration Intercept)
   // ---------------------------------------------------------------------------
   function handlePaste(event) {
     try {
@@ -569,6 +696,18 @@
       if (!pastedText || pastedText.trim().length < 5) return;
 
       const detected = detectSensitivePii(pastedText);
+
+      // Pre-warm AI model scan cache on paste
+      if (pastedText.trim().length >= 8) {
+        queryAiDlpModel(pastedText).then((aiRes) => {
+          if (aiRes && (aiRes.tier === "RESTRICTED" || aiRes.tier === "CONFIDENTIAL" || aiRes.action !== "ALLOW")) {
+            const { element } = getDeepTextAndElement(event);
+            applyElementHighlight(element);
+            const aiLabel = `AI Model: ${aiRes.threatCategory?.replace(/_/g, " ") || aiRes.tier} (${aiRes.riskScore}% Risk)`;
+            showTypingWarningBadge([aiLabel], `AI DLP Alert: ${aiRes.tier} Tier`);
+          }
+        }).catch(() => {});
+      }
 
       if (detected.length > 0) {
         event.preventDefault();
@@ -593,53 +732,72 @@
   document.addEventListener("paste", handlePaste, true);
 
   // ---------------------------------------------------------------------------
-  // 8. REAL-TIME TYPING DETECTION & FLOATING WARNING BADGE (Debounced 200ms)
+  // 9. REAL-TIME HYBRID TYPING DETECTION & FLOATING WARNING BADGE (Regex + AI Model)
   // ---------------------------------------------------------------------------
   let typingTimer = null;
-  const TYPING_DEBOUNCE_MS = 200;
+  let currentScanId = 0;
+  const TYPING_DEBOUNCE_MS = 250;
 
   function handleInput(event) {
     clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
+    const scanId = ++currentScanId;
+
+    typingTimer = setTimeout(async () => {
       const { element, text } = getDeepTextAndElement(event);
       if (!text || text.length < 5) {
         removeTypingWarningBadge();
-        if (element) {
-          const visibleContainer =
-            element.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
-          if (visibleContainer && visibleContainer.dataset && visibleContainer.dataset.sfFlagged) {
-            visibleContainer.style.outline = "";
-            visibleContainer.style.boxShadow = "";
-            delete visibleContainer.dataset.sfFlagged;
-          }
-        }
+        clearElementHighlight(element);
         return;
       }
 
-      const detected = detectSensitivePii(text);
-      if (detected.length > 0) {
-        // High visibility outline on composer wrapper
-        const visibleContainer =
-          element?.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
+      // Tier 1: Instant Local Deterministic Regex Scan (0ms Latency)
+      const localHits = detectSensitivePii(text);
+      if (localHits.length > 0) {
+        applyElementHighlight(element);
+        showTypingWarningBadge(localHits, "Sensitive PII Detected (Instant Guard)");
+      }
 
-        if (visibleContainer && visibleContainer.style) {
-          visibleContainer.style.outline = "2.5px solid #ff4d4f";
-          visibleContainer.style.boxShadow = "0 0 16px rgba(255, 77, 79, 0.55)";
-          visibleContainer.dataset.sfFlagged = "true";
+      // Tier 2: Real-Time Deep AI Neural Model Scan via Port 8000 (< 15ms Latency)
+      if (text.length >= 8) {
+        const aiResult = await queryAiDlpModel(text);
+        if (scanId !== currentScanId) return; // Stale event
+
+        if (
+          aiResult &&
+          (aiResult.tier === "RESTRICTED" ||
+            aiResult.tier === "CONFIDENTIAL" ||
+            aiResult.riskScore >= 45 ||
+            aiResult.action !== "ALLOW")
+        ) {
+          applyElementHighlight(element);
+          const aiLabels = [];
+          if (
+            aiResult.threatCategory &&
+            aiResult.threatCategory !== "BENIGN_DATA" &&
+            aiResult.threatCategory !== "BENIGN_BUSINESS_DATA"
+          ) {
+            aiLabels.push(`AI Model: ${aiResult.threatCategory.replace(/_/g, " ")} (${aiResult.riskScore}% Risk)`);
+          } else {
+            aiLabels.push(`AI Model: ${aiResult.tier} Tier (${aiResult.riskScore}% Risk)`);
+          }
+
+          if (aiResult.entities && aiResult.entities.length > 0) {
+            aiResult.entities.slice(0, 3).forEach((e) => {
+              if (!aiLabels.includes(e.entity_type)) aiLabels.push(e.entity_type);
+            });
+          }
+
+          const combinedHits = Array.from(new Set([...localHits, ...aiLabels]));
+          showTypingWarningBadge(combinedHits, `AI DLP Engine: ${aiResult.tier} Tier`);
+          console.warn("%c[SecureFlow AI Model Detected]%c", "color: #ff4d4f; font-weight: bold;", "", aiResult);
+          return;
         }
+      }
 
-        // Show persistent floating typing warning badge
-        showTypingWarningBadge(detected, "Sensitive Data Detected in Composer");
-        console.warn("%c[SecureFlow DLP Typing Warning]%c Flagged:", "color: #ff4d4f; font-weight: bold;", "", detected);
-      } else {
+      // If both local regex and AI model report clean:
+      if (localHits.length === 0) {
         removeTypingWarningBadge();
-        const visibleContainer =
-          element?.closest?.("rich-textarea, .input-area-container, form, .composer, .Am.Al, .chat-input") || element;
-        if (visibleContainer && visibleContainer.dataset && visibleContainer.dataset.sfFlagged) {
-          visibleContainer.style.outline = "";
-          visibleContainer.style.boxShadow = "";
-          delete visibleContainer.dataset.sfFlagged;
-        }
+        clearElementHighlight(element);
       }
     }, TYPING_DEBOUNCE_MS);
   }
@@ -653,7 +811,7 @@
   document.addEventListener("change", handleInput, true);
 
   // ---------------------------------------------------------------------------
-  // 9. ACTIVE FILE ATTACHMENT & DRAG-AND-DROP INTERCEPTION
+  // 10. ACTIVE FILE ATTACHMENT & DRAG-AND-DROP INTERCEPTION
   // ---------------------------------------------------------------------------
   function inspectFileObject(file, sourceElement) {
     if (!file) return;
@@ -661,9 +819,19 @@
     // Scan any document or file up to 15MB
     if (file.size <= 15 * 1024 * 1024) {
       const reader = new FileReader();
-      reader.onload = function (e) {
+      reader.onload = async function (e) {
         const text = e.target.result || "";
-        const detected = detectSensitivePii(text);
+        let detected = detectSensitivePii(text);
+
+        // Also query AI DLP model for deep file content analysis
+        if (text.length >= 8) {
+          const aiRes = await queryAiDlpModel(text.substring(0, 4000));
+          if (aiRes && (aiRes.tier === "RESTRICTED" || aiRes.tier === "CONFIDENTIAL" || aiRes.action !== "ALLOW")) {
+            const aiLabel = `AI Model: ${aiRes.threatCategory?.replace(/_/g, " ") || aiRes.tier} (${aiRes.riskScore}% Risk)`;
+            detected = Array.from(new Set([...detected, aiLabel]));
+          }
+        }
+
         if (detected.length > 0) {
           if (sourceElement && "value" in sourceElement) {
             try {
@@ -762,7 +930,7 @@
   );
 
   // ---------------------------------------------------------------------------
-  // 10. MULTI-CHANNEL SAFE DISPATCHER (Port 8000 Primary)
+  // 11. MULTI-CHANNEL SAFE DISPATCHER (Port 8000 Primary)
   // ---------------------------------------------------------------------------
   function safeDispatchEvent(eventPayload) {
     try {
@@ -803,7 +971,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 11. IN-PAGE FLOATING ALERT BANNERS & REAL-TIME TYPING BADGES
+  // 12. IN-PAGE FLOATING ALERT BANNERS & REAL-TIME TYPING BADGES
   // ---------------------------------------------------------------------------
   function ensureStylesInjected() {
     if (document.getElementById("sf-dlp-styles")) return;
@@ -822,7 +990,7 @@
     (document.head || document.documentElement).appendChild(styleEl);
   }
 
-  // Floating Real-Time Typing Badge (Shows immediately as user types sensitive PII)
+  // Floating Real-Time Typing Badge (Shows immediately as user types sensitive PII or AI-flagged content)
   function showTypingWarningBadge(detected, contextTitle) {
     ensureStylesInjected();
     let badge = document.getElementById("sf-dlp-typing-badge");
@@ -855,7 +1023,7 @@
       <div style="width: 12px; height: 12px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 10px #f59e0b; animation: sfPulse 1.2s infinite; flex-shrink: 0;"></div>
       <div>
         <div style="font-weight: 700; color: #fbbf24; font-size: 13px; letter-spacing: -0.2px;">
-          ⚠️ SecureFlow AI DLP &bull; Sensitive Data Detected
+          ⚠️ ${contextTitle || "SecureFlow AI DLP &bull; Sensitive Data Detected"}
         </div>
         <div style="color: #cbd5e1; font-size: 12px; margin-top: 2px;">
           Flagged: <strong style="color: #fde68a;">${detected.join(", ")}</strong>

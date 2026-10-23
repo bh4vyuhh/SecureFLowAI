@@ -219,7 +219,9 @@ BEARER_TOKEN_REGEX = re.compile(r"\bBearer\s+[a-zA-Z0-9_\-\.]{25,}\b")
 DB_URI_REGEX = re.compile(r"\b(?:postgres|postgresql|mysql|mongodb|redis|mssql|jdbc):\/\/[^\s\"']+:[^\s\"']+@[^\s\"']+\b", re.IGNORECASE)
 BANK_ACCOUNT_REGEX = re.compile(r"(?i)\b(?:account|acct|a\/c|acc)[\s#:]+(\d{8,18})\b")
 PAN_CARD_REGEX = re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")
-CONFIDENTIAL_MARKER_REGEX = re.compile(r"(?i)\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT)\b")
+CONFIDENTIAL_MARKER_REGEX = re.compile(
+    r"(?i)\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TOP SECRET|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT|RESTRICTED DATA|RESTRICTED|SALARY|PAYROLL|EMPLOYEE COMPENSATION|PROPRIETARY)\b"
+)
 
 PEM_KEY_REGEX = re.compile(
     r"-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----[^-]+-----END (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----",
