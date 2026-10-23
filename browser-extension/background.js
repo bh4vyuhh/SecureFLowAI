@@ -1,12 +1,11 @@
-const DEFAULT_GATEWAY_URL = "http://localhost:9090/api/v1/events/ingest";
-const DIRECT_AI_SERVICE_URL = "http://localhost:8000/api/v1/events/ingest";
+const DEFAULT_GATEWAY_URL = "http://127.0.0.1:8000/api/v1/events/ingest";
+const DIRECT_AI_SERVICE_URL = "http://127.0.0.1:8000/api/v1/events/ingest";
+const LOCALHOST_FALLBACK_URL = "http://localhost:8000/api/v1/events/ingest";
 const MAX_LOCAL_EVENTS = 50;
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.get(["gatewayUrl", "monitoringEnabled", "recentAlerts"], (data) => {
-    if (!data.gatewayUrl) {
-      chrome.storage.local.set({ gatewayUrl: DEFAULT_GATEWAY_URL });
-    }
+  chrome.storage.local.get(["monitoringEnabled", "recentAlerts"], (data) => {
+    chrome.storage.local.set({ gatewayUrl: DEFAULT_GATEWAY_URL });
     if (typeof data.monitoringEnabled === "undefined") {
       chrome.storage.local.set({ monitoringEnabled: true });
     }
@@ -14,7 +13,7 @@ chrome.runtime.onInstalled.addListener(() => {
       chrome.storage.local.set({ recentAlerts: [] });
     }
   });
-  console.log("[SecureFlow Service Worker] Installed & configured.");
+  console.log("[SecureFlow Service Worker] Installed & configured to FastAPI Port 8000.");
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -70,20 +69,14 @@ async function handleIngestEvent(eventPayload) {
       body: JSON.stringify(eventPayload)
     });
   } catch (err) {
-    if (targetUrl !== DIRECT_AI_SERVICE_URL) {
-      try {
-        console.log("[SecureFlow] Port 9090 offline, falling back directly to AI Service (8000)...");
-        response = await fetch(DIRECT_AI_SERVICE_URL, {
-          method: "POST",
-          headers: headers,
-          body: JSON.stringify(eventPayload)
-        });
-      } catch (fallbackErr) {
-        console.warn("[SecureFlow] Ingestion gateway and AI service offline, buffered locally:", fallbackErr.message);
-        return { status: "buffered_offline", localId: eventPayload.eventId };
-      }
-    } else {
-      console.warn("[SecureFlow] Ingestion gateway currently offline, event buffered locally:", err.message);
+    try {
+      response = await fetch(LOCALHOST_FALLBACK_URL, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(eventPayload)
+      });
+    } catch (fallbackErr) {
+      console.warn("[SecureFlow] Ingestion gateway offline, event buffered locally:", fallbackErr.message);
       return { status: "buffered_offline", localId: eventPayload.eventId };
     }
   }

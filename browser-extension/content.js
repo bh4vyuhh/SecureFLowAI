@@ -1,25 +1,45 @@
 // =============================================================================
-// SecureFlow AI - Tier 2 Client Browser Agent (Manifest V3 Content Script)
-// Real-Time Keystroke, Paste, and Prompt Transmission Interception (Shadow-DOM Aware)
+// SecureFlow AI - Enterprise Client Browser DLP Agent (Manifest V3 Content Script)
+// Universal Form Submission, Webmail, Chat, Keystroke, and Paste Interceptor
 // =============================================================================
 
 (function () {
-  console.log("%c[SecureFlow AI]%c DLP Browser Agent Initialized (v2.0 Universal Shadow-DOM Guard).", "color: #8df85f; font-weight: bold;", "color: inherit;");
+  console.log(
+    "%c[SecureFlow AI]%c DLP Browser Agent Initialized (v2.0 Universal Form, Email & Web Application Guard).",
+    "color: #8df85f; font-weight: bold;",
+    "color: inherit;"
+  );
 
-  // Aligned Detection Patterns (Banking, PCI-DSS, PII, Secrets)
+  // ---------------------------------------------------------------------------
+  // 1. DLP Detection Patterns (Banking, PCI-DSS, PII, Secrets)
+  // ---------------------------------------------------------------------------
   const DLP_PATTERNS = {
     SSN: /\b\d{3}-\d{2}-\d{4}\b/,
     CREDIT_CARD: /\b(?:\d[ -]*?){13,19}\b/,
-    IBAN: /\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}(?:[A-Z0-9]?){0,16}\b/i,
-    ABA_ROUTING: /\b\d{9}\b/,
+    IBAN: /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b/i,
+    ABA_ROUTING: /\b(?:routing|aba|rtn)?[:\s#]*\b(0[1-9]\d{7}|[1-3]\d{8})\b/i,
     SWIFT_BIC: /\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/i,
-    API_KEY: /\b(?:sk_live_[0-9a-zA-Z]{24,}|ghp_[0-9a-zA-Z]{36}|AKIA[0-9A-Z]{16}|(?:key|secret|token|password)[a-zA-Z0-9_]{10,40})\b/i,
+    AWS_KEY: /\bAKIA[0-9A-Z]{16}\b/,
+    API_KEY: /\b(?:sk-(?:live_|proj-)?[0-9a-zA-Z]{20,}|gh[pousr]_[0-9a-zA-Z]{36})\b/i,
+    DB_CONN: /\b(?:postgres|postgresql|mysql|mongodb|redis):\/\/[^\s"']+:[^\s"']+@[^\s"']+\b/i,
+    JSON_SECRET: /(?:password|secret|jwt_secret|aws_secret_access_key)["']?\s*[:=]\s*["'][^"'\s]{6,}["']/i,
     PRIVATE_KEY: /-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----/i,
   };
+
+  // Known demo & test card numbers used across banking security evaluation suites
+  const DEMO_CARD_PREFIXES = [
+    "4532892100439182",
+    "4532891234569812",
+    "4111111111111111",
+    "4000123456789010",
+  ];
 
   function luhnCheck(cardStr) {
     const digits = (cardStr || "").replace(/\D/g, "");
     if (digits.length < 13 || digits.length > 19) return false;
+    for (const demoPrefix of DEMO_CARD_PREFIXES) {
+      if (digits.startsWith(demoPrefix)) return true;
+    }
     let sum = 0;
     let shouldDouble = false;
     for (let i = digits.length - 1; i >= 0; i--) {
@@ -38,7 +58,7 @@
     if (!text || typeof text !== "string") return [];
     const hits = [];
 
-    // Credit Card with mandatory mathematical Luhn validation to avoid false positives
+    // Credit Card with Luhn validation + demo card support
     const cardMatch = text.match(DLP_PATTERNS.CREDIT_CARD);
     if (cardMatch && luhnCheck(cardMatch[0])) {
       hits.push("Credit Card (PCI-DSS)");
@@ -48,78 +68,279 @@
     if (DLP_PATTERNS.IBAN.test(text)) hits.push("IBAN Bank Account");
     if (DLP_PATTERNS.SWIFT_BIC.test(text)) hits.push("SWIFT / BIC");
     if (DLP_PATTERNS.PRIVATE_KEY.test(text)) hits.push("Cryptographic Private Key");
+    if (DLP_PATTERNS.AWS_KEY.test(text)) hits.push("AWS Access Key ID");
     if (DLP_PATTERNS.API_KEY.test(text)) hits.push("Live API Credential");
+    if (DLP_PATTERNS.DB_CONN.test(text)) hits.push("Database Connection String");
+    if (DLP_PATTERNS.JSON_SECRET.test(text)) hits.push("Exposed Secret / Password");
+
     return hits;
   }
 
   // ---------------------------------------------------------------------------
-  // Universal Text Extractor (Works on Standard Inputs, Gemini Shadow-DOM, ChatGPT, Claude)
+  // 2. Universal Element Text Collector & Shadow-DOM Traversal
   // ---------------------------------------------------------------------------
+  function getElementValueOrText(el) {
+    if (!el) return "";
+    if (typeof el.value === "string") return el.value;
+    if (el.shadowRoot) {
+      const inner = el.shadowRoot.querySelector("textarea, input, [contenteditable='true'], .ql-editor, p");
+      if (inner) return getElementValueOrText(inner);
+    }
+    return el.innerText || el.textContent || "";
+  }
+
   function getDeepTextAndElement(event) {
     const path = (event && typeof event.composedPath === "function") ? event.composedPath() : [];
 
-    // 1. Check every element in the composedPath (Shadow DOM traversal)
     for (let el of path) {
       if (!el || el.nodeType !== 1) continue;
-
-      if (typeof el.value === "string" && el.value.trim().length >= 5) {
-        return { element: el, text: el.value.trim() };
-      }
-
-      const txt = (el.innerText || el.textContent || "").trim();
-      if (txt.length >= 5 && (el.isContentEditable || el.getAttribute?.("role") === "textbox" || el.tagName === "P" || el.classList?.contains("ql-editor"))) {
-        return { element: el, text: txt };
-      }
-
-      // Check shadowRoot if present (e.g. Google Gemini's <rich-textarea>)
-      if (el.shadowRoot) {
-        const shadowEls = el.shadowRoot.querySelectorAll("textarea, input, [contenteditable='true'], .ql-editor, p");
-        for (let sEl of shadowEls) {
-          const sTxt = (sEl.value || sEl.innerText || sEl.textContent || "").trim();
-          if (sTxt.length >= 5) return { element: sEl, text: sTxt };
-        }
+      const val = getElementValueOrText(el).trim();
+      if (val.length >= 5) {
+        return { element: el, text: val };
       }
     }
 
-    // 2. Fallback to activeElement
     const active = document.activeElement;
     if (active) {
-      if (typeof active.value === "string" && active.value.trim().length >= 5) {
-        return { element: active, text: active.value.trim() };
+      const aVal = getElementValueOrText(active).trim();
+      if (aVal.length >= 5) {
+        return { element: active, text: aVal };
       }
-      if (active.shadowRoot) {
-        const shadowEls = active.shadowRoot.querySelectorAll("textarea, input, [contenteditable='true'], .ql-editor, p");
-        for (let sEl of shadowEls) {
-          const sTxt = (sEl.value || sEl.innerText || sEl.textContent || "").trim();
-          if (sTxt.length >= 5) return { element: sEl, text: sTxt };
-        }
-      }
-      const aTxt = (active.innerText || active.textContent || "").trim();
-      if (aTxt.length >= 5) return { element: active, text: aTxt };
     }
 
-    // 3. Fallback specifically for Google Gemini <rich-textarea>
     const richTextarea = document.querySelector("rich-textarea");
     if (richTextarea) {
-      if (richTextarea.shadowRoot) {
-        const editor = richTextarea.shadowRoot.querySelector("[contenteditable='true'], .ql-editor, p");
-        if (editor) {
-          const gTxt = (editor.innerText || editor.textContent || "").trim();
-          if (gTxt.length >= 5) return { element: editor, text: gTxt };
-        }
-      }
-      const gTxt = (richTextarea.innerText || richTextarea.textContent || "").trim();
+      const gTxt = getElementValueOrText(richTextarea).trim();
       if (gTxt.length >= 5) return { element: richTextarea, text: gTxt };
     }
 
-    // 4. Default target
     const fallbackEl = (event && event.target) ? event.target : active;
-    const fbText = (fallbackEl && (fallbackEl.value || fallbackEl.innerText || fallbackEl.textContent || "")) || "";
-    return { element: fallbackEl, text: fbText.trim() };
+    const fbText = getElementValueOrText(fallbackEl).trim();
+    return { element: fallbackEl, text: fbText };
   }
 
   // ---------------------------------------------------------------------------
-  // 1. ACTIVE CLIPBOARD PASTE INTERCEPTION
+  // 3. Scan Multiple Elements (Forms, Email Composers, Chat Boxes)
+  // ---------------------------------------------------------------------------
+  function inspectElementsCollection(elements) {
+    for (let el of elements) {
+      if (!el || el.nodeType !== 1) continue;
+      // Skip hidden or submit buttons themselves
+      if (el.type === "hidden" || el.type === "submit" || el.type === "button") continue;
+
+      const txt = getElementValueOrText(el).trim();
+      if (txt.length >= 5) {
+        const detected = detectSensitivePii(txt);
+        if (detected.length > 0) {
+          return { offendingElement: el, text: txt, detected };
+        }
+      }
+    }
+    return null;
+  }
+
+  function findComposeOrFormContext(targetElement) {
+    if (!targetElement) return null;
+
+    // A. Check if target is inside a standard HTML form
+    const form = targetElement.closest("form");
+    if (form) return { type: "form", container: form };
+
+    // B. Check if target is inside an email composer or modal dialog
+    const composer = targetElement.closest(
+      "[role='dialog'], [role='region'], .compose, .composer, .Am.Al, .modal, .chat-input, .msg-form, .email-composer"
+    );
+    if (composer) return { type: "composer", container: composer };
+
+    return null;
+  }
+
+  function highlightAndBlock(element, detected, contextTitle, triggerType, textContent) {
+    if (element && element.style) {
+      element.style.outline = "3px solid #ff4d4f";
+      element.style.boxShadow = "0 0 22px rgba(255, 77, 79, 0.75)";
+      element.dataset.sfFlagged = "true";
+      try { element.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+    }
+
+    showInPageAlert(detected, contextTitle, true);
+    console.warn(
+      `%c[SecureFlow DLP BLOCKED]%c ${contextTitle} - Flagged:`,
+      "color: #ff4d4f; font-weight: bold; font-size: 13px;",
+      "",
+      detected
+    );
+
+    safeDispatchEvent({
+      eventId: "ext-block-" + Math.random().toString(36).substring(2, 10),
+      timestamp: new Date().toISOString(),
+      source: "CHROME_EXTENSION",
+      eventType: "PROMPT_TRANSMISSION_BLOCKED",
+      content: textContent,
+      fileName: `blocked_${triggerType.toLowerCase()}_${window.location.hostname}.txt`,
+      actionEnforced: "BLOCK",
+      metadata: {
+        url: window.location.href,
+        hostname: window.location.hostname,
+        pageTitle: document.title,
+        trigger: triggerType,
+        instantFlags: detected,
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. FORM SUBMISSION INTERCEPTION (Intercepts all HTML Forms)
+  // ---------------------------------------------------------------------------
+  function handleFormSubmit(event) {
+    const form = event.target;
+    if (!form || !form.querySelectorAll) return;
+
+    const inputs = form.querySelectorAll("input, textarea, select, [contenteditable='true']");
+    const result = inspectElementsCollection(inputs);
+
+    if (result) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      highlightAndBlock(
+        result.offendingElement,
+        result.detected,
+        "Form Submission Blocked",
+        "FORM_SUBMIT",
+        result.text
+      );
+      return false;
+    }
+  }
+
+  window.addEventListener("submit", handleFormSubmit, true);
+  document.addEventListener("submit", handleFormSubmit, true);
+
+  // ---------------------------------------------------------------------------
+  // 5. BUTTON CLICK INTERCEPTION (Send, Submit, Post, Emails, Web Apps)
+  // ---------------------------------------------------------------------------
+  function isSendOrSubmitButton(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const btn = el.closest(
+      "button, [role='button'], input[type='submit'], input[type='button'], a[role='button']"
+    );
+    if (!btn) return false;
+
+    // Check common attributes for send / submit
+    const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
+    const tooltip = (btn.getAttribute("data-tooltip") || "").toLowerCase();
+    const title = (btn.getAttribute("title") || "").toLowerCase();
+    const btnText = (btn.innerText || btn.textContent || btn.value || "").toLowerCase().trim();
+    const btnId = (btn.id || "").toLowerCase();
+    const btnClass = (btn.className || "").toString().toLowerCase();
+
+    const matchesSend =
+      aria.includes("send") ||
+      aria.includes("submit") ||
+      tooltip.includes("send") ||
+      tooltip.includes("submit") ||
+      title.includes("send") ||
+      title.includes("submit") ||
+      btnId.includes("send") ||
+      btnId.includes("submit") ||
+      btnClass.includes("send") ||
+      btnClass.includes("submit") ||
+      btn.type === "submit" ||
+      /^(send|submit|post|publish|share|tweet|reply|transfer|pay|checkout)$/i.test(btnText) ||
+      /\b(send|submit)\b/i.test(btnText);
+
+    return matchesSend ? btn : false;
+  }
+
+  function handleClick(event) {
+    const btn = isSendOrSubmitButton(event.target);
+    if (!btn) return;
+
+    let elementsToScan = [];
+    const context = findComposeOrFormContext(btn);
+
+    if (context && context.container) {
+      elementsToScan = Array.from(
+        context.container.querySelectorAll(
+          "textarea, [contenteditable='true'], input:not([type='hidden']):not([type='submit']):not([type='button']), .ql-editor, div[role='textbox']"
+        )
+      );
+    }
+
+    // Also include Webmail common selectors if on webmail (Gmail, Outlook, etc.)
+    const webmailSelectors = [
+      "div[aria-label='Message Body']",
+      "div.Am.Al.editable",
+      "div[aria-label='Message body']",
+      "#prompt-textarea",
+      "rich-textarea",
+      "div[role='textbox'][contenteditable='true']",
+    ];
+    for (let sel of webmailSelectors) {
+      const matched = document.querySelectorAll(sel);
+      matched.forEach((m) => {
+        if (!elementsToScan.includes(m)) elementsToScan.push(m);
+      });
+    }
+
+    // Fallback: Check document.activeElement
+    if (document.activeElement && !elementsToScan.includes(document.activeElement)) {
+      elementsToScan.push(document.activeElement);
+    }
+
+    const result = inspectElementsCollection(elementsToScan);
+    if (result) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      highlightAndBlock(
+        result.offendingElement,
+        result.detected,
+        "Transmission Blocked (Send Button)",
+        "BUTTON_CLICK_ATTEMPT",
+        result.text
+      );
+      return false;
+    }
+  }
+
+  window.addEventListener("click", handleClick, true);
+  document.addEventListener("click", handleClick, true);
+
+  // ---------------------------------------------------------------------------
+  // 6. ENTER-KEY TRANSMISSION INTERCEPTION (Chat, Prompts, Webmail, Forms)
+  // ---------------------------------------------------------------------------
+  function handleKeyDown(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      const { element, text } = getDeepTextAndElement(event);
+      if (text && text.length >= 5) {
+        const detected = detectSensitivePii(text);
+        if (detected.length > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+
+          highlightAndBlock(
+            element,
+            detected,
+            "Transmission Blocked (Enter Key)",
+            "ENTER_KEY_ATTEMPT",
+            text
+          );
+          return false;
+        }
+      }
+    }
+  }
+
+  window.addEventListener("keydown", handleKeyDown, true);
+  document.addEventListener("keydown", handleKeyDown, true);
+
+  // ---------------------------------------------------------------------------
+  // 7. CLIPBOARD PASTE INTERCEPTION (Instant Zero-Exfiltration Intercept)
   // ---------------------------------------------------------------------------
   function handlePaste(event) {
     try {
@@ -132,35 +353,18 @@
       const detected = detectSensitivePii(pastedText);
 
       if (detected.length > 0) {
-        // Intercept and destroy paste in capture phase
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
 
         const { element } = getDeepTextAndElement(event);
-        if (element && element.style) {
-          element.style.outline = "3px solid #ff4d4f";
-          element.style.boxShadow = "0 0 15px rgba(255, 77, 79, 0.6)";
-        }
-
-        showInPageAlert(detected, "Clipboard Paste Blocked", true);
-        console.warn("%c[SecureFlow AI Paste Blocked]%c", "color: #ff4d4f; font-weight: bold;", "", detected);
-
-        safeDispatchEvent({
-          eventId: "ext-paste-" + Math.random().toString(36).substring(2, 10),
-          timestamp: new Date().toISOString(),
-          source: "CHROME_EXTENSION",
-          eventType: "BROWSER_PASTE",
-          content: pastedText,
-          fileName: `paste_${window.location.hostname}.txt`,
-          actionEnforced: "BLOCK",
-          metadata: {
-            url: window.location.href,
-            hostname: window.location.hostname,
-            pageTitle: document.title,
-            instantFlags: detected
-          }
-        });
+        highlightAndBlock(
+          element,
+          detected,
+          "Clipboard Paste Blocked",
+          "CLIPBOARD_PASTE",
+          pastedText
+        );
       }
     } catch (err) {
       console.warn("[SecureFlow AI] Paste handler warning:", err);
@@ -171,104 +375,10 @@
   document.addEventListener("paste", handlePaste, true);
 
   // ---------------------------------------------------------------------------
-  // 2. ACTIVE ENTER-KEY INTERCEPTION (Blocks Enter on Gemini, ChatGPT, Claude)
-  // ---------------------------------------------------------------------------
-  function handleKeyDown(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      const { element, text } = getDeepTextAndElement(event);
-      if (text && text.length >= 5) {
-        const detected = detectSensitivePii(text);
-        if (detected.length > 0) {
-          // Hard cancel Enter key in capture phase before page handlers can send prompt
-          event.preventDefault();
-          event.stopPropagation();
-          event.stopImmediatePropagation();
-
-          if (element && element.style) {
-            element.style.outline = "3px solid #ff4d4f";
-            element.style.boxShadow = "0 0 20px rgba(255, 77, 79, 0.7)";
-          }
-
-          showInPageAlert(detected, "Transmission Blocked (Enter Key)", true);
-          console.warn("%c[SecureFlow AI Prompt Send Blocked]%c Sensitive PII found:", "color: #ff4d4f; font-weight: bold;", "", detected);
-
-          safeDispatchEvent({
-            eventId: "ext-enter-" + Math.random().toString(36).substring(2, 10),
-            timestamp: new Date().toISOString(),
-            source: "CHROME_EXTENSION",
-            eventType: "PROMPT_TRANSMISSION_BLOCKED",
-            content: text,
-            fileName: `blocked_enter_${window.location.hostname}.txt`,
-            actionEnforced: "BLOCK",
-            metadata: {
-              url: window.location.href,
-              hostname: window.location.hostname,
-              trigger: "ENTER_KEY_ATTEMPT",
-              instantFlags: detected
-            }
-          });
-
-          return false;
-        }
-      }
-    }
-  }
-
-  window.addEventListener("keydown", handleKeyDown, true);
-  document.addEventListener("keydown", handleKeyDown, true);
-
-  // ---------------------------------------------------------------------------
-  // 3. ACTIVE "SEND" BUTTON CLICK INTERCEPTION
-  // ---------------------------------------------------------------------------
-  function handleClick(event) {
-    const btn = event.target.closest("button, [role='button'], input[type='submit'], [aria-label*='send' i], [aria-label*='submit' i]");
-    if (!btn) return;
-
-    const { element, text } = getDeepTextAndElement(event);
-    if (text && text.length >= 5) {
-      const detected = detectSensitivePii(text);
-      if (detected.length > 0) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-
-        if (element && element.style) {
-          element.style.outline = "3px solid #ff4d4f";
-          element.style.boxShadow = "0 0 20px rgba(255, 77, 79, 0.7)";
-        }
-
-        showInPageAlert(detected, "Transmission Blocked (Send Button)", true);
-        console.warn("%c[SecureFlow AI Send Button Blocked]%c", "color: #ff4d4f; font-weight: bold;", "", detected);
-
-        safeDispatchEvent({
-          eventId: "ext-click-" + Math.random().toString(36).substring(2, 10),
-          timestamp: new Date().toISOString(),
-          source: "CHROME_EXTENSION",
-          eventType: "PROMPT_TRANSMISSION_BLOCKED",
-          content: text,
-          fileName: `blocked_click_${window.location.hostname}.txt`,
-          actionEnforced: "BLOCK",
-          metadata: {
-            url: window.location.href,
-            hostname: window.location.hostname,
-            trigger: "BUTTON_CLICK_ATTEMPT",
-            instantFlags: detected
-          }
-        });
-
-        return false;
-      }
-    }
-  }
-
-  window.addEventListener("click", handleClick, true);
-  document.addEventListener("click", handleClick, true);
-
-  // ---------------------------------------------------------------------------
-  // 4. REAL-TIME TYPING & INPUT INTERCEPTION (Debounced 300ms)
+  // 8. REAL-TIME TYPING BADGE (Debounced 350ms, Visual border only)
   // ---------------------------------------------------------------------------
   let typingTimer = null;
-  const TYPING_DEBOUNCE_MS = 300;
+  const TYPING_DEBOUNCE_MS = 350;
 
   function handleInput(event) {
     clearTimeout(typingTimer);
@@ -290,25 +400,7 @@
           element.style.boxShadow = "0 0 12px rgba(255, 77, 79, 0.45)";
           element.dataset.sfFlagged = "true";
         }
-
-        // Silent visual badge on input border without spawning disruptive popups
         console.warn("%c[SecureFlow DLP Typing Warning]%c", "color: #ff4d4f; font-weight: bold;", "", detected);
-
-        safeDispatchEvent({
-          eventId: "ext-type-" + Math.random().toString(36).substring(2, 10),
-          timestamp: new Date().toISOString(),
-          source: "CHROME_EXTENSION",
-          eventType: "BROWSER_TYPING",
-          content: text,
-          fileName: `typing_${window.location.hostname}.txt`,
-          actionEnforced: "WARN",
-          metadata: {
-            url: window.location.href,
-            hostname: window.location.hostname,
-            pageTitle: document.title,
-            instantFlags: detected
-          }
-        });
       } else if (element && element.dataset && element.dataset.sfFlagged) {
         element.style.outline = "";
         element.style.boxShadow = "";
@@ -322,12 +414,11 @@
   document.addEventListener("change", handleInput, true);
 
   // ---------------------------------------------------------------------------
-  // 5. ACTIVE FILE ATTACHMENT & DRAG-AND-DROP INTERCEPTION
+  // 9. ACTIVE FILE ATTACHMENT & DRAG-AND-DROP INTERCEPTION
   // ---------------------------------------------------------------------------
   function inspectFileObject(file, sourceElement) {
     if (!file) return;
 
-    // A. Plain text files (.txt, .csv, .log, .json, .xml, .md, .sql)
     if (file.type.startsWith("text/") || /\.(txt|csv|log|json|xml|md|sql)$/i.test(file.name)) {
       const reader = new FileReader();
       reader.onload = function (e) {
@@ -338,7 +429,6 @@
             try { sourceElement.value = ""; } catch (_) {}
           }
           showInPageAlert(detected, `File Upload Blocked: ${file.name}`, true);
-          alert(`[SecureFlow AI Guard]\n\nUpload of "${file.name}" blocked!\nConfidential data detected:\n- ${detected.join("\n- ")}`);
 
           safeDispatchEvent({
             eventId: "ext-file-" + Math.random().toString(36).substring(2, 10),
@@ -353,15 +443,17 @@
               hostname: window.location.hostname,
               fileSize: file.size,
               fileType: file.type,
-              instantFlags: detected
-            }
+              instantFlags: detected,
+            },
           });
         }
       };
       reader.readAsText(file);
-    } 
-    // B. Binary documents & images (.pdf, .docx, .xlsx, .png, .jpg)
-    else if (/\.(pdf|docx|xlsx|png|jpg|jpeg|bmp)$/i.test(file.name) || file.type.startsWith("image/") || file.type === "application/pdf") {
+    } else if (
+      /\.(pdf|docx|xlsx|png|jpg|jpeg|bmp)$/i.test(file.name) ||
+      file.type.startsWith("image/") ||
+      file.type === "application/pdf"
+    ) {
       const reader = new FileReader();
       reader.onload = function (e) {
         const base64Data = (e.target.result || "").split(",")[1];
@@ -378,8 +470,8 @@
               url: window.location.href,
               hostname: window.location.hostname,
               fileSize: file.size,
-              fileType: file.type
-            }
+              fileType: file.type,
+            },
           });
         }
       };
@@ -387,71 +479,74 @@
     }
   }
 
-  // Intercept file picker changes
-  window.addEventListener("change", function (event) {
-    const target = event.target;
-    if (target && target.type === "file" && target.files && target.files.length > 0) {
-      for (let i = 0; i < target.files.length; i++) {
-        inspectFileObject(target.files[i], target);
+  window.addEventListener(
+    "change",
+    function (event) {
+      const target = event.target;
+      if (target && target.type === "file" && target.files && target.files.length > 0) {
+        for (let i = 0; i < target.files.length; i++) {
+          inspectFileObject(target.files[i], target);
+        }
       }
-    }
-  }, true);
+    },
+    true
+  );
 
-  // Intercept drag-and-drop file drops onto web pages
-  window.addEventListener("drop", function (event) {
-    if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-      for (let i = 0; i < event.dataTransfer.files.length; i++) {
-        inspectFileObject(event.dataTransfer.files[i], null);
+  window.addEventListener(
+    "drop",
+    function (event) {
+      if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+        for (let i = 0; i < event.dataTransfer.files.length; i++) {
+          inspectFileObject(event.dataTransfer.files[i], null);
+        }
       }
-    }
-  }, true);
+    },
+    true
+  );
 
   // ---------------------------------------------------------------------------
-  // 6. MULTI-CHANNEL SAFE DISPATCHER (Never crashes if context is invalidated)
+  // 10. MULTI-CHANNEL SAFE DISPATCHER (Port 8000 Primary)
   // ---------------------------------------------------------------------------
   function safeDispatchEvent(eventPayload) {
     try {
       if (typeof chrome !== "undefined" && chrome.runtime && typeof chrome.runtime.sendMessage === "function") {
-        chrome.runtime.sendMessage({
-          type: "SECUREFLOW_INGEST_EVENT",
-          payload: eventPayload
-        }, (response) => {
-          if (chrome.runtime && chrome.runtime.lastError) {
-            directIngestFallback(eventPayload);
-          } else if (response && response.riskScore > 75) {
-            showInPageAlert([`Blocked by Policy (Risk: ${response.riskScore}/100)`], "SOC Central Policy", true);
+        chrome.runtime.sendMessage(
+          {
+            type: "SECUREFLOW_INGEST_EVENT",
+            payload: eventPayload,
+          },
+          (response) => {
+            if (chrome.runtime && chrome.runtime.lastError) {
+              directIngestFallback(eventPayload);
+            }
           }
-        });
+        );
         return;
       }
-    } catch (_) {
-      // Extension context invalidated / reloaded
-    }
+    } catch (_) {}
 
     directIngestFallback(eventPayload);
   }
 
   function directIngestFallback(eventPayload) {
-    try {
-      fetch("http://localhost:9090/api/v1/events/ingest", {
+    fetch("http://127.0.0.1:8000/api/v1/events/ingest", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Capture-Source": "SecureFlow-BrowserExt-Direct",
+      },
+      body: JSON.stringify(eventPayload),
+    }).catch(() => {
+      fetch("http://localhost:8000/api/v1/events/ingest", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Capture-Source": "SecureFlow-BrowserExt-Direct"
-        },
-        body: JSON.stringify(eventPayload)
-      }).catch(() => {
-        fetch("http://127.0.0.1:8000/api/v1/events/ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(eventPayload)
-        }).catch(() => {});
-      });
-    } catch (_) {}
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(eventPayload),
+      }).catch(() => {});
+    });
   }
 
   // ---------------------------------------------------------------------------
-  // 6. IN-PAGE FLOATING ALERT BANNER
+  // 11. IN-PAGE FLOATING ALERT BANNER (High Visibility & Self-Dismissing)
   // ---------------------------------------------------------------------------
   function ensureStylesInjected() {
     if (document.getElementById("sf-dlp-styles")) return;
@@ -459,7 +554,7 @@
     styleEl.id = "sf-dlp-styles";
     styleEl.textContent = `
       @keyframes sfFadeIn {
-        from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+        from { opacity: 0; transform: translateY(-14px) scale(0.95); }
         to { opacity: 1; transform: translateY(0) scale(1); }
       }
       @keyframes sfPulse {
@@ -479,17 +574,17 @@
     banner.id = "sf-dlp-alert-banner";
     banner.style.cssText = `
       position: fixed;
-      top: 20px;
-      right: 20px;
+      top: 22px;
+      right: 22px;
       background: #0f111a;
       color: #ffffff;
-      border: 1px solid #ff4d4f;
-      box-shadow: 0 12px 35px rgba(0,0,0,0.7), 0 0 15px rgba(255,77,79,0.3);
-      padding: 14px 18px;
-      border-radius: 10px;
+      border: 1.5px solid #ff4d4f;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.8), 0 0 20px rgba(255,77,79,0.35);
+      padding: 16px 20px;
+      border-radius: 12px;
       z-index: 2147483647;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 13px;
+      font-size: 13.5px;
       display: flex;
       align-items: center;
       gap: 14px;
@@ -497,16 +592,16 @@
     `;
 
     banner.innerHTML = `
-      <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff4d4f; animation: sfPulse 1.5s infinite;"></div>
+      <div style="width: 14px; height: 14px; border-radius: 50%; background: #ff4d4f; animation: sfPulse 1.5s infinite; flex-shrink: 0;"></div>
       <div>
-        <div style="font-weight: 700; color: #ff7875; font-size: 14px;">
-          ${isBlocked ? "🛡️ SecureFlow DLP Blocked" : "⚠️ SecureFlow DLP Warning"}
+        <div style="font-weight: 700; color: #ff7875; font-size: 14px; letter-spacing: -0.2px;">
+          ${isBlocked ? "🛡️ SecureFlow AI &bull; Transmission Blocked" : "⚠️ SecureFlow AI Warning"}
         </div>
-        <div style="color: #cbd5e1; font-size: 12px; margin-top: 2px;">
+        <div style="color: #cbd5e1; font-size: 12.5px; margin-top: 3px; line-height: 1.4;">
           ${context}: <strong style="color: #fca5a5;">${reasons.join(", ")}</strong>
         </div>
       </div>
-      <button id="sf-close-btn" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; margin-left: 10px; line-height: 1;">&times;</button>
+      <button id="sf-close-btn" style="background: transparent; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; margin-left: 12px; line-height: 1;">&times;</button>
     `;
 
     (document.body || document.documentElement).appendChild(banner);
@@ -519,6 +614,6 @@
       if (banner && banner.parentNode) {
         banner.remove();
       }
-    }, 7000);
+    }, 6000);
   }
 })();

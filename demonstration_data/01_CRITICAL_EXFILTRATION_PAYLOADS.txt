@@ -7,7 +7,7 @@ HMAC masking, and exfiltration blocking across Browser Extension and SOC Console
 --- PAYLOAD 1: Direct Credit Card & Cardholder Exfiltration ---
 Employee Johnathan Doe (Dept: Treasury & Liquidity)
 Cardholder Name: Alice M. Sterling
-Account Number: 4532 8912 3456 9812
+Account Number: 4111 1111 1111 1111 (or Demo: 4532 8912 3456 9812)
 Expiration: 08/28
 CVV: 891
 Billing Zip: 10001

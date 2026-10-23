@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SecureFlow AI - Browser Extension DLP Test Playground</title>
+  <title>SecureFlow AI - Enterprise DLP Browser Extension Test Lab</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -14,7 +14,7 @@
       padding: 30px;
     }
     .container {
-      max-width: 850px;
+      max-width: 900px;
       margin: 0 auto;
     }
     .card {
@@ -42,7 +42,7 @@
     }
     .badge {
       display: inline-block;
-      padding: 3px 8px;
+      padding: 4px 10px;
       border-radius: 4px;
       font-size: 12px;
       font-weight: bold;
@@ -83,10 +83,11 @@
       background: #2563eb;
       color: white;
       border: none;
-      padding: 6px 12px;
+      padding: 6px 14px;
       border-radius: 6px;
       cursor: pointer;
       font-size: 12px;
+      font-weight: 600;
       transition: background 0.2s;
     }
     .copy-btn:hover { background: #1d4ed8; }
@@ -100,7 +101,7 @@
       margin-bottom: 6px;
       color: #cbd5e1;
     }
-    input[type="text"], textarea {
+    input[type="text"], input[type="email"], textarea {
       width: 100%;
       background: #0c0e17;
       border: 1px solid #334155;
@@ -111,7 +112,21 @@
       font-family: inherit;
       transition: border-color 0.2s, outline 0.2s;
     }
-    input[type="text"]:focus, textarea:focus {
+    input[type="text"]:focus, input[type="email"]:focus, textarea:focus {
+      outline: 2px solid #3b82f6;
+      border-color: #3b82f6;
+    }
+    .editable-box {
+      min-height: 80px;
+      background: #0c0e17;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #f1f5f9;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .editable-box:focus {
       outline: 2px solid #3b82f6;
       border-color: #3b82f6;
     }
@@ -128,95 +143,148 @@
       transition: background 0.2s;
     }
     .submit-btn:hover { background: #059669; color: white; }
-    .alert-preview {
-      background: rgba(239, 68, 68, 0.1);
-      border-left: 4px solid #ef4444;
+    .email-btn {
+      background: #f59e0b;
+      color: #451a03;
+      font-weight: 700;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      transition: background 0.2s;
+    }
+    .email-btn:hover { background: #d97706; color: white; }
+    .status-box {
+      background: rgba(16, 185, 129, 0.1);
+      border-left: 4px solid #10b981;
       padding: 12px;
       border-radius: 4px;
       font-size: 13px;
       margin-top: 14px;
+      color: #6ee7b7;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="card">
-      <h1>🛡️ SecureFlow AI &bull; Browser DLP Testing Playground</h1>
+      <h1>🛡️ SecureFlow AI &bull; Browser Extension DLP Testing Lab</h1>
       <p>
-        Use this interactive playground to test how the <strong>SecureFlow AI Browser Extension</strong> intercepts 
-        sensitive data when you <strong>type</strong>, <strong>paste</strong>, or <strong>submit forms</strong>.
+        Use this interactive laboratory to verify that the <strong>SecureFlow AI Browser Extension</strong> detects
+        and completely blocks sensitive data from being sent anywhere (standard web forms, webmail, and applications).
       </p>
       <div>
-        <span class="badge">Active Extension Mode</span>
+        <span class="badge">Universal DLP Guard Active</span>
         <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">
-          Make sure the extension is enabled in <code>chrome://extensions</code>
+          Extension must be loaded unpacked from <code>browser-extension/</code> in <code>chrome://extensions</code>
         </span>
       </div>
     </div>
 
-    <!-- Ready-to-copy DUMMY SAMPLES -->
+    <!-- READY-TO-COPY SAMPLES -->
     <div class="card">
-      <h2>📋 Click to Copy Dummy Financial & PII Data</h2>
-      <p>Click any button below to copy dummy data to your clipboard, then test pasting it into the fields below.</p>
+      <h2>📋 Click-to-Copy Real Sensitive Financial & PII Samples</h2>
+      <p>Click any button below to copy data to your clipboard, then test pasting or typing it into the test scenarios below.</p>
       
       <div class="grid">
         <div class="sample-box">
-          <div class="sample-title">💳 Dummy Credit Card (Visa)</div>
-          <div class="sample-val" id="sample-cc">4532-8921-0043-9182</div>
+          <div class="sample-title">💳 Valid Visa Credit Card (PCI-DSS)</div>
+          <div class="sample-val" id="sample-cc">4111-1111-1111-1111</div>
           <button class="copy-btn" onclick="copyValue('sample-cc')">Copy Credit Card</button>
         </div>
 
         <div class="sample-box">
-          <div class="sample-title">🆔 Dummy US Social Security Number</div>
+          <div class="sample-title">💳 Banking Demo Credit Card</div>
+          <div class="sample-val" id="sample-demo-cc">4532-8921-0043-9182</div>
+          <button class="copy-btn" onclick="copyValue('sample-demo-cc')">Copy Demo Card</button>
+        </div>
+
+        <div class="sample-box">
+          <div class="sample-title">🆔 US Social Security Number</div>
           <div class="sample-val" id="sample-ssn">123-45-6789</div>
           <button class="copy-btn" onclick="copyValue('sample-ssn')">Copy SSN</button>
         </div>
 
         <div class="sample-box">
-          <div class="sample-title">🏦 Dummy Bank Account (IBAN)</div>
-          <div class="sample-val" id="sample-iban">DE89370400440532013000</div>
+          <div class="sample-title">🏦 International Bank Account (IBAN)</div>
+          <div class="sample-val" id="sample-iban">GB29 BARC 2020 1534 8921 44</div>
           <button class="copy-btn" onclick="copyValue('sample-iban')">Copy IBAN</button>
         </div>
 
         <div class="sample-box">
-          <div class="sample-title">🔑 Dummy AWS API Key</div>
+          <div class="sample-title">🔑 AWS Cloud Access Key</div>
           <div class="sample-val" id="sample-api">AKIAIOSFODNN7EXAMPLE</div>
-          <button class="copy-btn" onclick="copyValue('sample-api')">Copy API Key</button>
+          <button class="copy-btn" onclick="copyValue('sample-api')">Copy AWS Key</button>
+        </div>
+
+        <div class="sample-box">
+          <div class="sample-title">🗄️ Database Connection URL</div>
+          <div class="sample-val" id="sample-db">postgres://admin:MasterKey2026!@prod-db.internal:5432/core_banking</div>
+          <button class="copy-btn" onclick="copyValue('sample-db')">Copy DB URI</button>
         </div>
       </div>
     </div>
 
-    <!-- INTERACTIVE TEST FORM -->
-    <div class="card">
-      <h2>🧪 Test Form 1: Real-time Typing & Paste Test</h2>
+    <!-- SCENARIO 1: EMAIL CLIENT TRANSMISSION BLOCKING -->
+    <div class="card email-composer" role="region" aria-label="Email Composer Simulation">
+      <h2>📧 Scenario 1: Webmail / Email Client Exfiltration Guard (e.g. Gmail / Outlook)</h2>
       <p>
-        1. <strong>Test Typing:</strong> Manually type <code>4532-8921-0043-9182</code> or <code>123-45-6789</code> into the input box.<br>
-        2. <strong>Test Pasting:</strong> Paste any copied sensitive snippet into the box.<br>
-        3. <strong>Watch:</strong> The extension displays the top-right warning banner, highlights the input with red outline, and sends telemetry to the SOC.
+        Simulates sending an external email via webmail. Try pasting or typing a credit card, SSN, or IBAN into the
+        Email Message Body, then click <strong>"Send Email"</strong>.
       </p>
 
-      <form id="test-form" onsubmit="handleFormSubmit(event)">
+      <div class="form-group">
+        <label>To (Recipient Address):</label>
+        <input type="email" id="email-to" value="external.vendor@external-domain.com" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label>Subject:</label>
+        <input type="text" id="email-subject" value="Confidential Financial Settlement Report" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label>Email Message Body (Contenteditable or Textarea):</label>
+        <textarea id="email-body" rows="4" placeholder="Try typing or pasting sensitive financial records here..."></textarea>
+      </div>
+
+      <button type="button" id="btn-send-email" aria-label="Send" class="email-btn" onclick="simulateEmailSend()">
+        📨 Send Email (Tests Webmail Send Interceptor)
+      </button>
+
+      <div class="status-box" id="email-status" style="display: none;"></div>
+    </div>
+
+    <!-- SCENARIO 2: STANDARD HTML FORM SUBMISSION -->
+    <div class="card">
+      <h2>📝 Scenario 2: Standard HTML &lt;form&gt; Submission Guard</h2>
+      <p>
+        Tests standard HTML form submission. If any field in this form contains sensitive PII or credentials, 
+        the extension intercepts the <code>submit</code> event in the capture phase and blocks it.
+      </p>
+
+      <form id="payment-form" onsubmit="handleFormSubmit(event)">
         <div class="form-group">
-          <label for="recipient">Recipient Name / Account Identifier</label>
-          <input type="text" id="recipient" placeholder="e.g. John Doe / Vendor Payment" autocomplete="off">
+          <label for="pay-vendor">Vendor / Payee Name:</label>
+          <input type="text" id="pay-vendor" value="Apex Global Logistics Inc." autocomplete="off">
         </div>
 
         <div class="form-group">
-          <label for="transfer-notes">Transaction Notes / Message (Try typing or pasting sensitive data here)</label>
-          <textarea id="transfer-notes" rows="4" placeholder="Type or paste confidential data here..." autocomplete="off"></textarea>
+          <label for="pay-notes">Invoice Notes & Justification:</label>
+          <textarea id="pay-notes" rows="3" placeholder="Paste sensitive account or credit card numbers here..."></textarea>
         </div>
 
         <div class="form-group">
-          <label for="card-number">Payment Details (Single-line input)</label>
-          <input type="text" id="card-number" placeholder="Try typing a credit card or SSN..." autocomplete="off">
+          <label for="pay-card">Card / Account Number:</label>
+          <input type="text" id="pay-card" placeholder="e.g. 4111-1111-1111-1111 or DE89370400440532013000" autocomplete="off">
         </div>
 
-        <button type="submit" class="submit-btn">🚀 Submit Form (Tests Form Submission Guard)</button>
+        <button type="submit" class="submit-btn">🚀 Submit Form (Tests Form Submit Event)</button>
       </form>
 
-      <div class="alert-preview" id="submit-notice" style="display: none;">
-        ✅ Form submitted successfully (No sensitive PII detected).
-      </div>
+      <div class="status-box" id="form-status" style="display: none;"></div>
     </div>
   </div>
 
@@ -224,16 +292,31 @@
     function copyValue(elementId) {
       const text = document.getElementById(elementId).innerText.trim();
       navigator.clipboard.writeText(text).then(() => {
-        alert("Copied to clipboard: " + text + "\nNow paste or type it in the form below!");
+        alert("Copied: " + text + "\nNow paste it into the form or email body below!");
       }).catch(err => {
         console.error("Copy failed", err);
       });
     }
 
+    function simulateEmailSend() {
+      // If the extension does NOT block it, this will execute:
+      const status = document.getElementById("email-status");
+      status.style.display = "block";
+      status.style.background = "rgba(239, 68, 68, 0.15)";
+      status.style.borderColor = "#ef4444";
+      status.style.color = "#fca5a5";
+      status.innerText = "⚠️ WARNING: Email was sent! (Extension was not enabled or did not intercept).";
+    }
+
     function handleFormSubmit(event) {
-      // If the extension's submit guard allows it, this runs:
-      document.getElementById("submit-notice").style.display = "block";
-      document.getElementById("submit-notice").innerText = "✅ Form submitted at " + new Date().toLocaleTimeString();
+      event.preventDefault();
+      // If the extension does NOT block it, this will execute:
+      const status = document.getElementById("form-status");
+      status.style.display = "block";
+      status.style.background = "rgba(239, 68, 68, 0.15)";
+      status.style.borderColor = "#ef4444";
+      status.style.color = "#fca5a5";
+      status.innerText = "⚠️ WARNING: Form submitted! (Extension was not enabled or did not intercept).";
     }
   </script>
 </body>

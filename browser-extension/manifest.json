@@ -1,16 +1,19 @@
 {
   "manifest_version": 3,
   "name": "SecureFlow AI - DLP Browser Agent",
-  "version": "1.0.0",
-  "description": "Real-time client-side paste and text interception for Data Leakage Prevention (DLP).",
+  "version": "2.0.0",
+  "description": "Enterprise Real-Time Data Leakage Prevention (DLP) across all forms, emails, and web applications.",
   "permissions": [
     "storage",
     "activeTab",
     "notifications"
   ],
   "host_permissions": [
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*",
     "http://localhost:9090/*",
     "http://127.0.0.1:9090/*",
+    "http://localhost:5174/*",
     "http://*/*",
     "https://*/*"
   ],
@@ -21,6 +24,8 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
+      "all_frames": true,
+      "match_about_blank": true,
       "run_at": "document_start"
     }
   ],
