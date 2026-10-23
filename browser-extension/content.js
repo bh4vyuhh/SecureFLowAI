@@ -14,33 +14,33 @@
   }
 
   console.log(
-    "%c[SecureFlow AI]%c DLP Browser Agent Initialized (v2.2 AI Model + Real-Time Engine Active).",
+    "%c[SecureFlow AI]%c DLP Browser Agent Initialized (v2.3 Production Final Guard).",
     "color: #8df85f; font-weight: bold;",
     "color: inherit;"
   );
 
   // ---------------------------------------------------------------------------
-  // 1. DLP Detection Patterns (Banking, PCI-DSS, PII, Secrets, Passwords, AI Prompts)
+  // 1. DLP Detection Patterns (Banking, PCI-DSS, PII, Secrets, Passwords)
   // ---------------------------------------------------------------------------
   const DLP_PATTERNS = {
     SSN: /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/,
-    SSN_CONTEXT: /(?:ssn|social\s+security)[\s#:]*\b(\d{9}|\d{3}[- ]\d{2}[- ]\d{4})\b/i,
+    SSN_CONTEXT: /\b(?:ssn|social\s+security)[\s#:]*(\d{9}|\d{3}[- ]\d{2}[- ]\d{4})\b/i,
     CREDIT_CARD: /\b(?:\d[ -]*?){13,19}\b/,
     IBAN: /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b/i,
-    BANK_ACCOUNT: /(?:account|acct|a\/c|acc)[\s#:]+(\d{8,18})\b/i,
-    ABA_ROUTING: /(?:routing|aba|rtn)[\s#:]+\b(0[1-9]\d{7}|[1-3]\d{8})\b/i,
-    SWIFT_BIC: /(?:swift|bic|bank)[\s#:]*\b([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/,
+    BANK_ACCOUNT: /\b(?:bank\s+account|acct\s+no|account\s+number)[\s#:]+(\d{8,18})\b/i,
+    ABA_ROUTING: /\b(?:routing|aba|rtn)[\s#:]+(0[1-9]\d{7}|[1-3]\d{8})\b/i,
+    SWIFT_BIC: /\b(?:swift|bic)[\s#:]+([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/,
     PAN_CARD: /\b[A-Z]{5}[0-9]{4}[A-Z]\b/,
-    AADHAAR: /(?:aadhaar|uid|uidai)[\s#:]*\b[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}\b/i,
+    AADHAAR: /\b(?:aadhaar|uid|uidai)[\s#:]*[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}\b/i,
     API_KEY: /\b(?:sk-[a-zA-Z0-9_\-]{20,}|sk-ant-[a-zA-Z0-9_\-]{20,}|gh[pousr]_[0-9a-zA-Z]{36}|AIza[0-9A-Za-z\-_]{35}|xox[baprs]-[0-9a-zA-Z]{10,48}|hf_[0-9a-zA-Z]{34,}|AKIA[0-9A-Z]{16})\b/i,
     GENERIC_KEY: /\b(?:api[_-]?key|client[_-]?secret|secret[_-]?key|auth[_-]?token|access[_-]?token)[\s:=]+([a-zA-Z0-9_\-\.]{12,})\b/i,
-    PASSWORD_SECRET: /\b(?:admin\s+)?(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key|passcode|passphrase)[\s:=]+([^\s,;'"<>]{3,})/i,
-    PLAIN_PASSWORD: /\b(?:my\s+|our\s+|the\s+)?(?:password|secret|passcode|pin)\s+(?:is|was|=)?\s*([^\s,;'"<>]{3,})/i,
+    PASSWORD_SECRET: /\b(?:admin\s+)?(?:password|passwd|pwd|db_pass|jwt_secret|private_key|access_key)[\s:=]+([^\s,;'"<>]{4,})/i,
+    PLAIN_PASSWORD: /\b(?:my|our|the|your|admin|root)\s+(?:password|passcode)\s+(?:is|was|=|:)\s*([^\s,;'"<>]{3,})/i,
     BEARER_TOKEN: /\bBearer\s+[a-zA-Z0-9_\-\.]{25,}\b/,
     JWT_TOKEN: /\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b/,
     DB_CONN: /\b(?:postgres|postgresql|mysql|mongodb|redis|mssql|jdbc):\/\/[^\s"']+:[^\s"']+@[^\s"']+\b/i,
     PRIVATE_KEY: /-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----/i,
-    CONFIDENTIAL: /\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TOP SECRET|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT|RESTRICTED DATA|RESTRICTED|SALARY|PAYROLL|EMPLOYEE COMPENSATION|PROPRIETARY AND CONFIDENTIAL|PROPRIETARY)\b/i,
+    CONFIDENTIAL: /\b(?:STRICTLY\s+CONFIDENTIAL|TOP\s+SECRET|TRADE\s+SECRET|INTERNAL\s+USE\s+ONLY|RESTRICTED\s+DOCUMENT|PROPRIETARY\s+AND\s+CONFIDENTIAL)\b/i,
   };
 
   function luhnCheck(cardStr) {
@@ -64,15 +64,15 @@
     if (!text || typeof text !== "string") return [];
     const hits = [];
 
-    // Credit Card: Valid Luhn OR grouped 15-16 digit sequence OR digits with card context
+    // Credit Card: Valid Luhn OR 16-grouped digits with card context
     const cardMatch = text.match(DLP_PATTERNS.CREDIT_CARD);
     if (cardMatch) {
       const rawCard = cardMatch[0];
       const digits = rawCard.replace(/\D/g, "");
       const isLuhn = luhnCheck(rawCard);
-      const isGrouped = /^\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{1,4}$/.test(rawCard.trim());
-      const hasCardContext = /(?:card|cc|visa|master|amex|pan|exp|cvv|payment|debit|credit)/i.test(text);
-      if (isLuhn || isGrouped || (digits.length >= 13 && digits.length <= 19 && hasCardContext)) {
+      const isGrouped16 = /^\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{4}$/.test(rawCard.trim());
+      const hasCardContext = /(?:credit\s*card|debit\s*card|visa|mastercard|amex|card\s*number|cvv)/i.test(text);
+      if (isLuhn || (isGrouped16 && hasCardContext) || (digits.length >= 13 && digits.length <= 19 && isLuhn)) {
         hits.push("Credit Card (PCI-DSS)");
       }
     }
@@ -115,13 +115,13 @@
   }
 
   async function queryAiDlpModel(text) {
-    if (!text || text.trim().length < 8) return null;
+    if (!text || text.trim().length < 12) return null;
     const cleanText = text.trim();
 
     const cached = getFromAiCache(cleanText);
     if (cached) return cached;
 
-    // A. Query via Background Service Worker (Bypasses any page CSP)
+    // A. Query via Background Service Worker (Bypasses host page CSP)
     try {
       if (typeof chrome !== "undefined" && chrome.runtime && typeof chrome.runtime.sendMessage === "function") {
         const response = await new Promise((resolve) => {
@@ -328,7 +328,7 @@
         if (detected.length > 0) {
           return { offendingElement: el, text: txt, detected };
         }
-        if (cachedAi && (cachedAi.tier === "RESTRICTED" || cachedAi.tier === "CONFIDENTIAL" || cachedAi.action !== "ALLOW")) {
+        if (cachedAi && (cachedAi.tier === "RESTRICTED" || (cachedAi.tier === "CONFIDENTIAL" && cachedAi.riskScore >= 70 && cachedAi.action === "BLOCK"))) {
           const aiReasons = [
             `AI Model: ${cachedAi.threatCategory?.replace(/_/g, " ") || cachedAi.tier} (${cachedAi.riskScore}% Risk)`
           ];
@@ -494,9 +494,9 @@
     return matchesSend ? btn : false;
   }
 
-  function interceptSendAttempt(event, triggerType) {
+  function handleSendClick(event) {
     const btn = isSendOrSubmitButton(event.target);
-    if (!btn) return false;
+    if (!btn) return; // Not a send button -> let native click pass through instantly!
 
     let elementsToScan = [];
 
@@ -519,8 +519,6 @@
       "div[aria-label*='Message Body' i]",
       "div[aria-label*='Message body' i]",
       "div.Am.Al.editable",
-      ".ProseMirror",
-      "[data-slate-editor='true']",
     ];
     for (let sel of composerSelectors) {
       const matched = document.querySelectorAll(sel);
@@ -534,18 +532,9 @@
       elementsToScan.push(document.activeElement);
     }
 
-    // 4. Universal page fallback if no elements found yet
-    if (elementsToScan.length === 0) {
-      const container = btn.closest(".container, .card, .box, section, main, article, body") || document.body || document;
-      elementsToScan = Array.from(
-        container.querySelectorAll(
-          "textarea, [contenteditable='true'], input:not([type='hidden']):not([type='submit']):not([type='button']), .ql-editor, div[role='textbox']"
-        )
-      );
-    }
-
     const result = inspectElementsCollection(elementsToScan);
     if (result) {
+      // ONLY block if sensitive data is detected!
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
@@ -553,22 +542,19 @@
       highlightAndBlock(
         result.offendingElement,
         result.detected,
-        `Transmission Blocked (${triggerType})`,
+        "Transmission Blocked (Send Button)",
         "BUTTON_CLICK_ATTEMPT",
         result.text
       );
-      return true;
+      return false;
     }
-    return false;
+
+    // If clean, do NOT call preventDefault or stopPropagation.
+    // The native button click proceeds directly on the FIRST click!
   }
 
-  // Intercept click, pointerdown, and mousedown in capture phase to preempt host page listeners
-  window.addEventListener("click", (e) => interceptSendAttempt(e, "Send Button"), true);
-  document.addEventListener("click", (e) => interceptSendAttempt(e, "Send Button"), true);
-  window.addEventListener("mousedown", (e) => interceptSendAttempt(e, "Send MouseDown"), true);
-  document.addEventListener("mousedown", (e) => interceptSendAttempt(e, "Send MouseDown"), true);
-  window.addEventListener("pointerdown", (e) => interceptSendAttempt(e, "Send PointerDown"), true);
-  document.addEventListener("pointerdown", (e) => interceptSendAttempt(e, "Send PointerDown"), true);
+  // Single clean capture click listener (eliminates multiple click requirements)
+  document.addEventListener("click", handleSendClick, true);
 
   // ---------------------------------------------------------------------------
   // 7. KEYBOARD SHORTCUT & ENTER-KEY TRANSMISSION INTERCEPTION
@@ -586,29 +572,8 @@
       let detected = detectSensitivePii(text);
 
       const cachedAi = getFromAiCache(text);
-      if (detected.length === 0 && cachedAi && (cachedAi.tier === "RESTRICTED" || cachedAi.tier === "CONFIDENTIAL" || cachedAi.action !== "ALLOW")) {
+      if (detected.length === 0 && cachedAi && (cachedAi.tier === "RESTRICTED" || (cachedAi.tier === "CONFIDENTIAL" && cachedAi.riskScore >= 70 && cachedAi.action === "BLOCK"))) {
         detected = [`AI Model: ${cachedAi.threatCategory?.replace(/_/g, " ") || cachedAi.tier} (${cachedAi.riskScore}% Risk)`];
-      }
-
-      let offendingEl = element;
-      let offendingText = text;
-
-      // If not detected in immediate focused element, check all open composers on the page
-      if (detected.length === 0) {
-        const composers = document.querySelectorAll(
-          "rich-textarea, div.ql-editor, #prompt-textarea, div[aria-label*='Message Body' i], div[aria-label*='Message body' i], div.Am.Al.editable, [contenteditable='true'][role='textbox']"
-        );
-        for (let comp of composers) {
-          const compTxt = getElementValueOrText(comp).trim();
-          const hits = detectSensitivePii(compTxt);
-          const compAi = getFromAiCache(compTxt);
-          if (hits.length > 0 || (compAi && compAi.tier !== "SAFE" && compAi.action !== "ALLOW")) {
-            detected = hits.length > 0 ? hits : [`AI Model: ${compAi.threatCategory?.replace(/_/g, " ") || compAi.tier} (${compAi.riskScore}% Risk)`];
-            offendingEl = comp;
-            offendingText = compTxt;
-            break;
-          }
-        }
       }
 
       if (detected.length > 0) {
@@ -617,11 +582,11 @@
         event.stopImmediatePropagation();
 
         highlightAndBlock(
-          offendingEl,
+          element,
           detected,
           "Email Transmission Blocked (Ctrl+Enter Send)",
           "KEYBOARD_SHORTCUT_SEND",
-          offendingText
+          text
         );
         return false;
       }
@@ -631,7 +596,7 @@
     if (!isCtrlOrCmd && !isShift) {
       const target = event.target || document.activeElement;
 
-      // If inside a <form> (e.g. Google Forms), check ALL form inputs before allowing Enter submission
+      // If inside a <form>, check form inputs before allowing Enter submission
       if (target && target.closest) {
         const form = target.closest("form");
         if (form) {
@@ -659,7 +624,7 @@
       if (text && text.length >= 5) {
         let detected = detectSensitivePii(text);
         const cachedAi = getFromAiCache(text);
-        if (detected.length === 0 && cachedAi && (cachedAi.tier === "RESTRICTED" || cachedAi.tier === "CONFIDENTIAL" || cachedAi.action !== "ALLOW")) {
+        if (detected.length === 0 && cachedAi && (cachedAi.tier === "RESTRICTED" || (cachedAi.tier === "CONFIDENTIAL" && cachedAi.riskScore >= 70 && cachedAi.action === "BLOCK"))) {
           detected = [`AI Model: ${cachedAi.threatCategory?.replace(/_/g, " ") || cachedAi.tier} (${cachedAi.riskScore}% Risk)`];
         }
 
@@ -681,7 +646,6 @@
     }
   }
 
-  window.addEventListener("keydown", handleKeyDown, true);
   document.addEventListener("keydown", handleKeyDown, true);
 
   // ---------------------------------------------------------------------------
@@ -698,9 +662,9 @@
       const detected = detectSensitivePii(pastedText);
 
       // Pre-warm AI model scan cache on paste
-      if (pastedText.trim().length >= 8) {
+      if (pastedText.trim().length >= 12) {
         queryAiDlpModel(pastedText).then((aiRes) => {
-          if (aiRes && (aiRes.tier === "RESTRICTED" || aiRes.tier === "CONFIDENTIAL" || aiRes.action !== "ALLOW")) {
+          if (aiRes && (aiRes.tier === "RESTRICTED" || (aiRes.tier === "CONFIDENTIAL" && aiRes.riskScore >= 70 && aiRes.action === "BLOCK"))) {
             const { element } = getDeepTextAndElement(event);
             applyElementHighlight(element);
             const aiLabel = `AI Model: ${aiRes.threatCategory?.replace(/_/g, " ") || aiRes.tier} (${aiRes.riskScore}% Risk)`;
@@ -728,7 +692,6 @@
     }
   }
 
-  window.addEventListener("paste", handlePaste, true);
   document.addEventListener("paste", handlePaste, true);
 
   // ---------------------------------------------------------------------------
@@ -736,7 +699,7 @@
   // ---------------------------------------------------------------------------
   let typingTimer = null;
   let currentScanId = 0;
-  const TYPING_DEBOUNCE_MS = 250;
+  const TYPING_DEBOUNCE_MS = 350;
 
   function handleInput(event) {
     clearTimeout(typingTimer);
@@ -750,24 +713,25 @@
         return;
       }
 
-      // Tier 1: Instant Local Deterministic Regex Scan (0ms Latency)
+      // Tier 1: Local Deterministic Regex Scan
       const localHits = detectSensitivePii(text);
       if (localHits.length > 0) {
         applyElementHighlight(element);
-        showTypingWarningBadge(localHits, "Sensitive PII Detected (Instant Guard)");
+        showTypingWarningBadge(localHits, "Sensitive PII Detected");
+        return;
       }
 
-      // Tier 2: Real-Time Deep AI Neural Model Scan via Port 8000 (< 15ms Latency)
-      if (text.length >= 8) {
+      // Tier 2: Real-Time Deep AI Neural Model Scan via Port 8000
+      // Only queries if text has at least 15 chars and multiple words
+      if (text.length >= 15 && text.includes(" ")) {
         const aiResult = await queryAiDlpModel(text);
         if (scanId !== currentScanId) return; // Stale event
 
+        // Only alert if the AI model flags high severity RESTRICTED or BLOCK action
         if (
           aiResult &&
           (aiResult.tier === "RESTRICTED" ||
-            aiResult.tier === "CONFIDENTIAL" ||
-            aiResult.riskScore >= 45 ||
-            aiResult.action !== "ALLOW")
+            (aiResult.tier === "CONFIDENTIAL" && aiResult.riskScore >= 70 && aiResult.action === "BLOCK"))
         ) {
           applyElementHighlight(element);
           const aiLabels = [];
@@ -781,33 +745,20 @@
             aiLabels.push(`AI Model: ${aiResult.tier} Tier (${aiResult.riskScore}% Risk)`);
           }
 
-          if (aiResult.entities && aiResult.entities.length > 0) {
-            aiResult.entities.slice(0, 3).forEach((e) => {
-              if (!aiLabels.includes(e.entity_type)) aiLabels.push(e.entity_type);
-            });
-          }
-
-          const combinedHits = Array.from(new Set([...localHits, ...aiLabels]));
-          showTypingWarningBadge(combinedHits, `AI DLP Engine: ${aiResult.tier} Tier`);
-          console.warn("%c[SecureFlow AI Model Detected]%c", "color: #ff4d4f; font-weight: bold;", "", aiResult);
+          showTypingWarningBadge(aiLabels, `AI DLP Engine: ${aiResult.tier} Tier`);
           return;
         }
       }
 
-      // If both local regex and AI model report clean:
-      if (localHits.length === 0) {
-        removeTypingWarningBadge();
-        clearElementHighlight(element);
-      }
+      // If clean (normal sentence): ENSURE NO POPUP and NO RED BORDER
+      removeTypingWarningBadge();
+      clearElementHighlight(element);
     }, TYPING_DEBOUNCE_MS);
   }
 
-  // Bind to input, keyup, beforeinput, and change across both window and document in capture phase
-  window.addEventListener("input", handleInput, true);
+  // Bind input listeners
   document.addEventListener("input", handleInput, true);
-  window.addEventListener("keyup", handleInput, true);
   document.addEventListener("keyup", handleInput, true);
-  window.addEventListener("beforeinput", handleInput, true);
   document.addEventListener("change", handleInput, true);
 
   // ---------------------------------------------------------------------------
@@ -824,9 +775,9 @@
         let detected = detectSensitivePii(text);
 
         // Also query AI DLP model for deep file content analysis
-        if (text.length >= 8) {
+        if (text.length >= 15) {
           const aiRes = await queryAiDlpModel(text.substring(0, 4000));
-          if (aiRes && (aiRes.tier === "RESTRICTED" || aiRes.tier === "CONFIDENTIAL" || aiRes.action !== "ALLOW")) {
+          if (aiRes && (aiRes.tier === "RESTRICTED" || (aiRes.tier === "CONFIDENTIAL" && aiRes.riskScore >= 70 && aiRes.action === "BLOCK"))) {
             const aiLabel = `AI Model: ${aiRes.threatCategory?.replace(/_/g, " ") || aiRes.tier} (${aiRes.riskScore}% Risk)`;
             detected = Array.from(new Set([...detected, aiLabel]));
           }
@@ -889,7 +840,7 @@
     });
   });
 
-  // Relay Kernel-Level Audit Events from network_guard.js to Port 8000 (Exempt from Page CSP)
+  // Relay Kernel-Level Audit Events from network_guard.js to Port 8000
   window.addEventListener("message", function (event) {
     if (event.data && event.data.type === "SECUREFLOW_PAGE_AUDIT_EVENT") {
       safeDispatchEvent(event.data.payload);
@@ -904,7 +855,7 @@
     (document.head || document.documentElement).appendChild(s);
   } catch (_) {}
 
-  window.addEventListener(
+  document.addEventListener(
     "change",
     function (event) {
       const target = event.target;
@@ -917,7 +868,7 @@
     true
   );
 
-  window.addEventListener(
+  document.addEventListener(
     "drop",
     function (event) {
       if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
@@ -990,7 +941,7 @@
     (document.head || document.documentElement).appendChild(styleEl);
   }
 
-  // Floating Real-Time Typing Badge (Shows immediately as user types sensitive PII or AI-flagged content)
+  // Floating Real-Time Typing Badge
   function showTypingWarningBadge(detected, contextTitle) {
     ensureStylesInjected();
     let badge = document.getElementById("sf-dlp-typing-badge");

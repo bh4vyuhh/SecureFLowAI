@@ -165,10 +165,9 @@ class HybridDLPEngine(IDLPEngine):
 
         financial_keywords = {
             "ebitda", "treasury", "margin", "acquisition", "revenue", "dividend",
-            "confidential", "internal only", "proprietary", "salary", "payroll",
-            "compensation", "restricted", "merger", "trade secret", "secret"
+            "strictly confidential", "internal only", "trade secret"
         }
-        has_confidential_marker = any(k in normalized_text.lower() for k in financial_keywords) or any(c in normalized_text for c in ["$", "€", "£", "¥"])
+        has_confidential_marker = any(k in normalized_text.lower() for k in financial_keywords)
         sensitive_identifiers = {"CONFIDENTIAL_MARKER", "US_SSN", "PAN_CARD"}
         has_sensitive_ents = any(e["entity_type"] in sensitive_identifiers for e in resolved_ents)
         is_confidential = (

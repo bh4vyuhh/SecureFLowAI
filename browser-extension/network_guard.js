@@ -26,23 +26,23 @@
   // ---------------------------------------------------------------------------
   const DLP_PATTERNS = {
     SSN: /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/,
-    SSN_CONTEXT: /(?:ssn|social\s+security)[\s#:]*\b(\d{9}|\d{3}[- ]\d{2}[- ]\d{4})\b/i,
+    SSN_CONTEXT: /\b(?:ssn|social\s+security)[\s#:]*(\d{9}|\d{3}[- ]\d{2}[- ]\d{4})\b/i,
     CREDIT_CARD: /\b(?:\d[ -]*?){13,19}\b/,
     IBAN: /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){11,30}\b/i,
-    BANK_ACCOUNT: /(?:account|acct|a\/c|acc)[\s#:]+(\d{8,18})\b/i,
-    ABA_ROUTING: /(?:routing|aba|rtn)[\s#:]+\b(0[1-9]\d{7}|[1-3]\d{8})\b/i,
-    SWIFT_BIC: /(?:swift|bic|bank)[\s#:]*\b([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/,
+    BANK_ACCOUNT: /\b(?:bank\s+account|acct\s+no|account\s+number)[\s#:]+(\d{8,18})\b/i,
+    ABA_ROUTING: /\b(?:routing|aba|rtn)[\s#:]+(0[1-9]\d{7}|[1-3]\d{8})\b/i,
+    SWIFT_BIC: /\b(?:swift|bic)[\s#:]+([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/,
     PAN_CARD: /\b[A-Z]{5}[0-9]{4}[A-Z]\b/,
-    AADHAAR: /(?:aadhaar|uid|uidai)[\s#:]*\b[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}\b/i,
+    AADHAAR: /\b(?:aadhaar|uid|uidai)[\s#:]*[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}\b/i,
     API_KEY: /\b(?:sk-[a-zA-Z0-9_\-]{20,}|sk-ant-[a-zA-Z0-9_\-]{20,}|gh[pousr]_[0-9a-zA-Z]{36}|AIza[0-9A-Za-z\-_]{35}|xox[baprs]-[0-9a-zA-Z]{10,48}|hf_[0-9a-zA-Z]{34,}|AKIA[0-9A-Z]{16})\b/i,
     GENERIC_KEY: /\b(?:api[_-]?key|client[_-]?secret|secret[_-]?key|auth[_-]?token|access[_-]?token)[\s:=]+([a-zA-Z0-9_\-\.]{12,})\b/i,
-    PASSWORD_SECRET: /\b(?:admin\s+)?(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key|passcode|passphrase)[\s:=]+([^\s,;'"<>]{3,})/i,
-    PLAIN_PASSWORD: /\b(?:my\s+|our\s+|the\s+)?(?:password|secret|passcode|pin)\s+(?:is|was|=)?\s*([^\s,;'"<>]{3,})/i,
+    PASSWORD_SECRET: /\b(?:admin\s+)?(?:password|passwd|pwd|db_pass|jwt_secret|private_key|access_key)[\s:=]+([^\s,;'"<>]{4,})/i,
+    PLAIN_PASSWORD: /\b(?:my|our|the|your|admin|root)\s+(?:password|passcode)\s+(?:is|was|=|:)\s*([^\s,;'"<>]{3,})/i,
     BEARER_TOKEN: /\bBearer\s+[a-zA-Z0-9_\-\.]{25,}\b/,
     JWT_TOKEN: /\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b/,
     DB_CONN: /\b(?:postgres|postgresql|mysql|mongodb|redis|mssql|jdbc):\/\/[^\s"']+:[^\s"']+@[^\s"']+\b/i,
     PRIVATE_KEY: /-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----/i,
-    CONFIDENTIAL: /\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TOP SECRET|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT|PROPRIETARY AND CONFIDENTIAL)\b/i,
+    CONFIDENTIAL: /\b(?:STRICTLY\s+CONFIDENTIAL|TOP\s+SECRET|TRADE\s+SECRET|INTERNAL\s+USE\s+ONLY|RESTRICTED\s+DOCUMENT|PROPRIETARY\s+AND\s+CONFIDENTIAL)\b/i,
   };
 
   function luhnCheck(cardStr) {
@@ -72,9 +72,9 @@
       const rawCard = cardMatch[0];
       const digits = rawCard.replace(/\D/g, "");
       const isLuhn = luhnCheck(rawCard);
-      const isGrouped = /^\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{1,4}$/.test(rawCard.trim());
-      const hasCardContext = /(?:card|cc|visa|master|amex|pan|exp|cvv|payment|debit|credit)/i.test(text);
-      if (isLuhn || isGrouped || (digits.length >= 13 && digits.length <= 19 && hasCardContext)) {
+      const isGrouped16 = /^\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{4}$/.test(rawCard.trim());
+      const hasCardContext = /(?:credit\s*card|debit\s*card|visa|mastercard|amex|card\s*number|cvv)/i.test(text);
+      if (isLuhn || (isGrouped16 && hasCardContext) || (digits.length >= 13 && digits.length <= 19 && isLuhn)) {
         hits.push("Credit Card (PCI-DSS)");
       }
     }
