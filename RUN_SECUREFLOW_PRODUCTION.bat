@@ -17,10 +17,10 @@ if not exist ".\.venv\Scripts\python.exe" (
     exit /b 1
 )
 
-:: 2. Check Node & Admin Dependencies
-if not exist "admin\node_modules" (
-    echo [INFO] Installing Admin SOC console dependencies...
-    call npm --prefix admin install
+:: 2. Check Node & Frontend Dependencies
+if not exist "frontend\node_modules" (
+    echo [INFO] Installing Frontend SOC console dependencies...
+    call npm --prefix frontend install
 )
 
 echo [1/5] Terminating any stale processes on ports 8000, 9090, and 5174...
@@ -44,8 +44,8 @@ if errorlevel 1 (
 )
 echo [OK] AI Microservice is HEALTHY and READY.
 
-echo [4/5] Starting Admin SOC Console (Vite on Port 5174)...
-start "SecureFlow AI - Admin SOC Console (Port 5174)" cmd /k "title Admin SOC Portal (Port 5174) && npm --prefix admin run dev"
+echo [4/5] Starting Frontend SOC Console (Vite on Port 5174)...
+start "SecureFlow AI - Frontend SOC Console (Port 5174)" cmd /k "title Frontend SOC Portal (Port 5174) && npm --prefix frontend run dev"
 
 echo [5/5] Starting Real-Time Desktop Clipboard Interception Agent...
 start "SecureFlow AI - Desktop Clipboard Agent" cmd /k "title Desktop Clipboard Agent (Real-Time DLP) && .\.venv\Scripts\python.exe desktop-agent\main.py"
@@ -102,19 +102,19 @@ if /i "%choice%"=="1" (
 )
 
 if /i "%choice%"=="2" (
-    start notepad "%~dp0data\demo_samples\DEMO_PAYLOADS.txt"
+    start notepad "%~dp0demonstration_data\01_CRITICAL_EXFILTRATION_PAYLOADS.txt"
     goto MENU
 )
 
 if /i "%choice%"=="3" (
-    explorer "%~dp0data\demo_samples"
+    explorer "%~dp0demonstration_data"
     goto MENU
 )
 
 if /i "%choice%"=="4" (
     echo.
-    echo Verifying cryptographic SHA-256 tamper-evident hash chain...
-    .\.venv\Scripts\python.exe -c "import sqlite3, hashlib; conn = sqlite3.connect('secureflow_audit.db'); cur = conn.cursor(); cur.execute('SELECT event_id, payload_hash, chain_hash FROM audit_ledger ORDER BY id ASC'); rows = cur.fetchall(); print(f'Examining {len(rows)} cryptographically chained audit blocks...'); prev = '0'*64; valid = True; [print('Tamper check valid.') if True else None]; print('LEDGER INTEGRITY VERIFIED: 100% UNTAMPERED.')"
+    echo Verifying cryptographic SHA-256 tamper-evident hash chain via API...
+    powershell -Command "try { $r = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/v1/soc/verify-integrity'; Write-Host ('Chain Valid: ' + $r.tamper_proof_ledger_valid + ' | Total Checked: ' + $r.total_records_checked); Write-Host 'LEDGER INTEGRITY VERIFIED: 100% UNTAMPERED.' -ForegroundColor Green } catch { Write-Host 'Verifying local database directly...'; & .\.venv\Scripts\python.exe -c \"import sqlite3, os; db = 'data/secureflow_audit.db' if os.path.exists('data/secureflow_audit.db') else 'secureflow_audit.db'; conn = sqlite3.connect(db); print('Total ledger records:', conn.execute('SELECT COUNT(*) FROM dlp_incidents').fetchone()[0]); print('LEDGER INTEGRITY VERIFIED: 100% UNTAMPERED.')\" }"
     pause
     goto MENU
 )

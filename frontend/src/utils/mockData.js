@@ -218,3 +218,33 @@ export const resourcePillData = [
   { id: 'p9', labelVal: '18%', resources: 28, valid: 20 },
   { id: 'p10', labelVal: '81%', resources: 90, valid: 75 },
 ];
+
+export const timelineTracksData = [
+  {
+    date: 'Mon, 18',
+    items: [
+      { id: 1, platform: 'Chrome Extension', count: '14 hits', start: 3, end: 12, color: '#8df85f' },
+      { id: 2, platform: 'Desktop Clipboard', count: '6 alerts', start: 16, end: 26, color: '#f38933' }
+    ]
+  },
+  {
+    date: 'Tue, 19',
+    items: [
+      { id: 3, platform: 'Web Ingestion', count: '29 cleared', start: 1, end: 18, color: '#ffffff' },
+      { id: 4, platform: 'Local File Agent', count: '8 hits', start: 21, end: 29, color: '#8df85f' }
+    ]
+  },
+  {
+    date: 'Wed, 20',
+    items: [
+      { id: 5, platform: 'Clipboard Copy', count: '12 alerts', start: 8, end: 22, color: '#f38933' }
+    ]
+  },
+  {
+    date: 'Today',
+    items: [
+      { id: 6, platform: 'Active Gateway', count: 'Live', start: 12, end: 28, color: '#8df85f' }
+    ]
+  }
+];
+

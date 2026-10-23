@@ -1,473 +1,483 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Download,
-  Search,
-  Filter,
-  ShieldAlert,
-  ShieldCheck,
-  Lock,
-  Key,
-  Eye,
-  CheckCircle,
-  X,
-  RefreshCw,
-  ExternalLink,
-} from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Download, Search, AlertCircle, RefreshCw, Key, Shield, Eye, Lock, CheckCircle2, X, ShieldCheck, Info, Scale } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
-export default function AuditLogsView({ logs = [], setLogs }) {
+export default function AuditLogsView({ logs = [], setLogs, onRefresh }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterAction, setFilterAction] = useState('All');
-  const [filterDepartment, setFilterDepartment] = useState('All');
-  const [selectedIncident, setSelectedIncident] = useState(null);
+  const [filterSource, setFilterSource] = useState('All');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [verifying, setVerifying] = useState(false);
 
-  // Detokenization Modal State
-  const [detokenizeModalOpen, setDetokenizeModalOpen] = useState(false);
+  // Detokenization state inside modal
+  const [authKey, setAuthKey] = useState('bank-sec-admin-token');
   const [tokenInput, setTokenInput] = useState('');
-  const [authKeyInput, setAuthKeyInput] = useState('bank-soc-super-secret-key-2026');
   const [detokenizedResult, setDetokenizedResult] = useState(null);
   const [detokenizing, setDetokenizing] = useState(false);
 
-  useEffect(() => {
-    // Attempt fetching live incidents from PostgreSQL API
-    api.getIncidents({ limit: 50 })
-      .then((records) => {
-        if (Array.isArray(records) && records.length > 0) {
-          setLogs(records);
-        }
-      })
-      .catch((err) => {
-        console.warn('Backend audit API offline; using local state logs:', err);
-      });
-  }, []);
+  const handleVerifyIntegrity = async () => {
+    setVerifying(true);
+    try {
+      const res = await api.verifyLedgerIntegrity();
+      if (res.tamperProofLedgerValid || res.tamper_proof_ledger_valid) {
+        toast.success(
+          `Cryptographic Ledger Verified: ${res.totalRecordsVerified ?? res.total_records_verified ?? 0} records chained with SHA-256 without tampering (${res.verificationStandard ?? res.verification_standard ?? 'SOC2/ISO 42001'})`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.error(`Tamper Alert: Ledger signature mismatch detected at incident ${res.corrupted_incident_id || 'unknown'}!`);
+      }
+    } catch {
+      toast.error('Could not complete cryptographic audit integrity check.');
+    } finally {
+      setVerifying(false);
+    }
+  };
 
-  const [filterCompliance, setFilterCompliance] = useState('All');
-
-  const handleExportCSV = (complianceFilter = null) => {
-    const targetLogs = complianceFilter && complianceFilter !== 'All'
-      ? logs.filter((l) => (l.compliance_tags || []).includes(complianceFilter))
-      : logs;
-
-    const headers = [
-      'Incident ID',
-      'Timestamp',
-      'User ID',
-      'Department',
-      'Destination Domain',
-      'Classification Tier',
-      'Risk Score',
-      'Enforcement Action',
-      'Compliance Standard',
-      'Payload SHA-256',
-      'Tamperproof Audit Hash',
-      'Previous Block Hash',
-    ];
-
-    const rows = targetLogs.map((l) => [
-      l.id,
-      l.timestamp,
-      `"${l.user_id || 'anonymous'}"`,
-      `"${l.department || 'general'}"`,
-      `"${l.destination_domain || 'internal'}"`,
-      l.classification_tier,
-      l.risk_score,
-      l.enforcement_action,
-      `"${(l.compliance_tags && l.compliance_tags.length > 0 ? l.compliance_tags : ['RBI-GENERAL-AUDIT']).join(';')}"`,
-      `"${l.payload_sha256}"`,
-      `"${l.audit_hash || 'SHA256_VERIFIED_' + (l.id || '').slice(0, 12)}"`,
-      `"${l.prev_hash || 'GENESIS_BLOCK_0000000000000000'}"`,
+  const handleExportCSV = () => {
+    if (logs.length === 0) {
+      toast.error('No incident records to export.');
+      return;
+    }
+    const headers = ['Event ID', 'Timestamp', 'Client ID', 'User ID', 'Department', 'Destination', 'Action', 'Tier', 'Risk Score', 'Enforcement'];
+    const rows = logs.map(log => [
+      log.id || '',
+      log.timestamp || '',
+      `"${log.client_id || ''}"`,
+      `"${log.user_id || ''}"`,
+      `"${log.department || ''}"`,
+      `"${log.destination_domain || ''}"`,
+      `"${log.source_action || ''}"`,
+      `"${log.classification_tier || ''}"`,
+      log.risk_score || 0,
+      `"${log.enforcement_action || ''}"`
     ]);
-
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
-    const filterSuffix = complianceFilter ? `_${complianceFilter.toLowerCase()}` : '';
-    link.download = `secureflow_tamperproof_audit${filterSuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', `secureflow_regulatory_audit_trail.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`Cryptographic compliance report (${complianceFilter || 'Complete'}) exported to CSV.`);
+    toast.success('Audit logs exported successfully!');
   };
 
-  const handleExportJSON = () => {
-    const report = {
-      report_title: 'SecureFlowAI Tamperproof Bank Forensic Audit Log',
-      generated_at: new Date().toISOString(),
-      standards_verified: ['RBI-DLP-2023', 'PCI-DSS-v4.0-Req3', 'GDPR-Art32'],
-      tamperproof_chain_integrity: 'CRYPTOGRAPHICALLY_VERIFIED_VALID',
-      total_records: logs.length,
-      audit_records: logs.map((l) => ({
-        ...l,
-        compliance_tags: l.compliance_tags || ['RBI-DLP-2023'],
-        prev_hash: l.prev_hash || 'GENESIS_BLOCK_0000000000000000',
-        audit_hash: l.audit_hash || `SHA256_VERIFIED_${l.id?.slice(0, 16)}`,
-      })),
-    };
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `secureflow_regulatory_dossier_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Tamperproof regulatory dossier exported in JSON format.');
+  const toggleIncorrectClassification = (id) => {
+    if (setLogs) {
+      setLogs(prev => prev.map(log => 
+        log.id === id 
+          ? { ...log, incorrectClassification: !log.incorrectClassification }
+          : log
+      ));
+    }
+    toast.success('Retraining pipeline feed updated.');
   };
 
-  const handleOpenDetokenize = (incident = null) => {
-    setSelectedIncident(incident);
-    setDetokenizedResult(null);
-    setTokenInput(
-      incident?.token || 'TOK_CREDIT_CARD_4a8b1c9e2f3d5a6b'
-    );
-    setDetokenizeModalOpen(true);
-  };
-
-  const executeDetokenization = async () => {
-    if (!tokenInput.trim() || !authKeyInput.trim()) {
-      toast.error('Token and SOC authorization key are required.');
+  const handleDetokenize = async () => {
+    if (!tokenInput.trim()) {
+      toast.error('Please enter an encrypted token.');
       return;
     }
     setDetokenizing(true);
     setDetokenizedResult(null);
-
     try {
-      const res = await api.detokenize(tokenInput.trim(), authKeyInput.trim());
+      const res = await api.detokenize(tokenInput.trim(), authKey);
       setDetokenizedResult(res);
-      toast.success('Cryptographic detokenization authorized.');
+      toast.success('Token decrypted successfully from Vault.');
     } catch (err) {
-      // Offline fallback demonstration
-      if (authKeyInput === 'bank-soc-super-secret-key-2026') {
-        setTimeout(() => {
-          setDetokenizedResult({
-            token: tokenInput,
-            plaintext_value: '4530-8921-0043-9182',
-            entity_type: 'CREDIT_CARD',
-            key_version: 'v1',
-          });
-          toast.success('Cryptographic detokenization authorized.');
-          setDetokenizing(false);
-        }, 300);
-      } else {
-        toast.error('Invalid SOC authorization key (403 Forbidden).');
-        setDetokenizing(false);
-      }
+      console.error('Detokenization error:', err);
+      toast.error('Detokenization failed: Invalid key or token format.');
     } finally {
       setDetokenizing(false);
     }
   };
 
-  const filteredLogs = logs.filter((log) => {
-    const matchAction = filterAction === 'All' || log.enforcement_action === filterAction;
-    const matchDept = filterDepartment === 'All' || log.department === filterDepartment;
-    const matchCompliance = filterCompliance === 'All' || (log.compliance_tags || ['RBI-GENERAL-AUDIT']).includes(filterCompliance);
-    const q = searchTerm.toLowerCase();
-    const matchSearch =
-      (log.id && log.id.toLowerCase().includes(q)) ||
-      (log.user_id && log.user_id.toLowerCase().includes(q)) ||
-      (log.destination_domain && log.destination_domain.toLowerCase().includes(q)) ||
-      (log.payload_sha256 && log.payload_sha256.toLowerCase().includes(q));
-    return matchAction && matchDept && matchCompliance && matchSearch;
-  });
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const src = log.source_action || log.source || '';
+      const cat = log.classification_tier || log.category || '';
+      const dest = log.destination_domain || log.details || log.file_name || log.fileName || '';
+      const user = log.user_id || '';
+
+      const matchSrc = filterSource === 'All' || src.toLowerCase().includes(filterSource.toLowerCase());
+      const matchCat = filterCategory === 'All' || cat.toLowerCase() === filterCategory.toLowerCase();
+      const matchSearch = dest.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (log.id && log.id.toLowerCase().includes(searchTerm.toLowerCase()));
+      return matchSrc && matchCat && matchSearch;
+    });
+  }, [logs, filterSource, filterCategory, searchTerm]);
 
   return (
     <div className="flex-1 p-8 space-y-8 select-none">
-      {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#8df85f]/10 text-[#8df85f] border border-[#8df85f]/20 font-bold">
-              SHA-256 HASH CHAINING VERIFIED
-            </span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/10 text-white border border-white/20 font-bold">
-              OBJECTIVE 4: TAMPERPROOF LOGS
-            </span>
-          </div>
           <h1 className="text-4xl font-extrabold tracking-tight uppercase font-sans text-white">
-            Incident Triage & Tamperproof Audit Trail
+            AUDIT LOGS TRAIL
           </h1>
-          <p className="text-sm text-[#8e8f96] mt-1">
-            Cryptographic ledger linking every incident by hash chaining. Certified compliant with RBI, PCI-DSS v4.0, and GDPR Art 32.
+          <p className="text-sm text-[#8e8f96]">
+            Complete regulatory log history of sensitive text, uploads, clipboard events, and actions taken.
           </p>
         </div>
 
-        <div className="flex items-center flex-wrap gap-2.5">
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => handleOpenDetokenize()}
-            className="px-3.5 py-2 rounded-xl bg-[#121316] border border-[#23252c] text-[#f38933] hover:text-white hover:border-white text-xs font-semibold flex items-center gap-2 transition cursor-pointer"
+            onClick={handleVerifyIntegrity}
+            disabled={verifying}
+            className="bg-[#0c0c0e] border border-[#8df85f]/40 text-[#8df85f] rounded-2xl px-4 py-2 text-xs font-semibold hover:bg-[#8df85f]/10 hover:border-[#8df85f] transition cursor-pointer flex items-center gap-2"
           >
-            <Key className="w-3.5 h-3.5" />
-            Detokenizer
-          </button>
-          
-          <button
-            onClick={() => handleExportCSV(filterCompliance !== 'All' ? filterCompliance : null)}
-            className="px-3.5 py-2 rounded-xl bg-white text-black text-xs font-bold flex items-center gap-1.5 transition hover:scale-105 shadow-md cursor-pointer"
-            title="Export CSV audit trail"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export CSV
+            <ShieldCheck className={`w-3.5 h-3.5 ${verifying ? 'animate-spin' : ''}`} />
+            {verifying ? 'Verifying Hashes...' : 'Verify Ledger Integrity'}
           </button>
 
-          <button
-            onClick={handleExportJSON}
-            className="px-3.5 py-2 rounded-xl bg-[#121316] border border-[#23252c] text-[#8e8f96] hover:text-white hover:border-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-            title="Export full cryptographic compliance JSON dossier"
-          >
-            <Download className="w-3.5 h-3.5 text-[#8df85f]" />
-            Export Dossier (JSON)
-          </button>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="bg-[#0c0c0e] border border-[#161619] rounded-2xl px-4 py-2 text-xs font-semibold text-[#8e8f96] hover:text-white hover:border-white transition cursor-pointer flex items-center gap-2"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh Trail
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="bg-[#0c0c0e] border border-[#161619] p-5 rounded-[28px] flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-[#8e8f96] absolute left-3.5 top-3" />
-            <input
-              type="text"
-              placeholder="Search by User, Domain, Incident ID, or SHA-256..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#121316] border border-[#23252c] rounded-xl pl-10 pr-4 py-2 text-xs font-mono text-white focus:outline-none focus:border-white"
-            />
+      <div className="bg-[#0c0c0e] border border-[#161619] rounded-[28px] p-6 space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-white mb-1">DLP Gateway Transactions</h2>
+            <p className="text-xs text-[#8e8f96]">
+              Total {filteredLogs.length} live events logged in persistent database
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="w-4 h-4 text-[#8e8f96] absolute left-3.5 top-3" />
+              <input
+                type="text"
+                placeholder="Search file name, destination, user..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="bg-[#121316] border border-[#23252c] rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:outline-none focus:border-white w-56"
+              />
+            </div>
+
+            <select
+              value={filterSource}
+              onChange={e => setFilterSource(e.target.value)}
+              className="bg-[#121316] border border-[#23252c] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
+            >
+              <option value="All">All Sources</option>
+              <option value="clipboard">Desktop Clipboard</option>
+              <option value="prompt">Browser Extension</option>
+              <option value="file_upload">File Upload</option>
+            </select>
+
+            <select
+              value={filterCategory}
+              onChange={e => setFilterCategory(e.target.value)}
+              className="bg-[#121316] border border-[#23252c] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
+            >
+              <option value="All">All Categories</option>
+              <option value="SAFE">SAFE</option>
+              <option value="INTERNAL">INTERNAL</option>
+              <option value="CONFIDENTIAL">CONFIDENTIAL</option>
+              <option value="RESTRICTED">RESTRICTED</option>
+            </select>
+
+            <button
+              onClick={handleExportCSV}
+              className="bg-white text-black font-semibold text-xs px-4 py-2 rounded-xl flex items-center gap-2 hover:scale-105 transition cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-xs text-[#8e8f96]">
-            Regulation:
-            <select
-              value={filterCompliance}
-              onChange={(e) => setFilterCompliance(e.target.value)}
-              className="bg-[#121316] border border-[#23252c] rounded-xl px-3 py-1.5 text-xs text-[#8df85f] font-mono focus:outline-none cursor-pointer"
-            >
-              <option value="All">All Regulations</option>
-              <option value="RBI-DLP-2023">RBI Guidelines (Banking)</option>
-              <option value="PCI-DSS-v4.0-Req3">PCI-DSS v4.0 (Cardholder Data)</option>
-              <option value="GDPR-Art32">GDPR (EU PII)</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-[#8e8f96]">
-            <Filter className="w-3.5 h-3.5" /> Action:
-            <select
-              value={filterAction}
-              onChange={(e) => setFilterAction(e.target.value)}
-              className="bg-[#121316] border border-[#23252c] rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none cursor-pointer"
-            >
-              <option value="All">All Actions</option>
-              <option value="BLOCK">BLOCK</option>
-              <option value="MASK">MASK / ENCRYPT</option>
-              <option value="ALLOW">ALLOW</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-[#8e8f96]">
-            Department:
-            <select
-              value={filterDepartment}
-              onChange={(e) => setFilterDepartment(e.target.value)}
-              className="bg-[#121316] border border-[#23252c] rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none cursor-pointer"
-            >
-              <option value="All">All Departments</option>
-              <option value="Investment Banking">Investment Banking</option>
-              <option value="Treasury & Liquidity">Treasury & Liquidity</option>
-              <option value="Wealth Management">Wealth Management</option>
-              <option value="Retail Banking">Retail Banking</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Incident Audit Table */}
-      <div className="bg-[#0c0c0e] rounded-[28px] overflow-hidden border border-[#161619]">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#161619] bg-[#121316] text-[11px] font-bold text-[#8e8f96] uppercase tracking-wider">
-                <th className="py-3.5 px-5">Incident / Time</th>
-                <th className="py-3.5 px-5">User & Dept</th>
-                <th className="py-3.5 px-5">Target Domain</th>
-                <th className="py-3.5 px-5">Compliance Standard</th>
-                <th className="py-3.5 px-5">Action</th>
-                <th className="py-3.5 px-5">Risk</th>
-                <th className="py-3.5 px-5">Tamperproof Chain</th>
-                <th className="py-3.5 px-5 text-right">Triage</th>
+              <tr className="border-b border-[#161619] text-[#8e8f96] text-xs font-semibold uppercase tracking-wider">
+                <th className="py-4 px-4">Event ID</th>
+                <th className="py-4 px-4">Timestamp</th>
+                <th className="py-4 px-4">Source</th>
+                <th className="py-4 px-4">Target / Details</th>
+                <th className="py-4 px-4">Category Tier</th>
+                <th className="py-4 px-4">Risk</th>
+                <th className="py-4 px-4">Enforcement</th>
+                <th className="py-4 px-4">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#161619] text-xs">
+            <tbody className="divide-y divide-[#111215] text-xs">
               {filteredLogs.map((log) => {
-                const isBlock = log.enforcement_action === 'BLOCK';
-                const isMask = log.enforcement_action === 'MASK';
+                const tier = log.classification_tier || log.category || 'SAFE';
+                const action = log.enforcement_action || log.actionTaken || 'ALLOW';
+                const isHighRisk = (log.risk_score || log.riskScore || 0) > 75;
+
                 return (
-                  <tr key={log.id} className="hover:bg-[#121316]/50 transition">
-                    <td className="py-3.5 px-5">
-                      <div className="font-mono font-semibold text-white">{log.id}</div>
-                      <div className="text-[10px] text-[#8e8f96] font-mono">
-                        {new Date(log.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                  <tr 
+                    key={log.id || Math.random()} 
+                    className="hover:bg-[#121316] transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedLog(log);
+                      setDetokenizedResult(null);
+                    }}
+                  >
+                    <td className="py-4 px-4 font-mono text-[#8df85f] font-bold">
+                      {log.id || 'N/A'}
+                    </td>
+                    <td className="py-4 px-4 font-mono text-[#8e8f96]">
+                      {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Live'}
+                    </td>
+                    <td className="py-4 px-4 text-white font-medium">
+                      {log.source_action || log.source || 'Gateway'}
+                    </td>
+                    <td className="py-4 px-4 max-w-[240px] truncate" title={log.details || log.destination_domain}>
+                      <span className="text-white block text-xs truncate">
+                        {log.destination_domain || log.file_name || log.fileName || 'Gateway Event'}
+                      </span>
+                      <span className="text-[#8e8f96] block text-[10px] truncate">
+                        {log.user_id ? `${log.user_id} (${log.department || 'dept'})` : (log.details || 'Live inspection')}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] uppercase ${
+                        tier === 'RESTRICTED' || tier === 'Highly Confidential' ? 'bg-[#f38933]/15 text-[#f38933] border border-[#f38933]/30' :
+                        tier === 'CONFIDENTIAL' || tier === 'Confidential' ? 'bg-white/10 text-white border border-white/20' :
+                        tier === 'INTERNAL' || tier === 'Internal' ? 'bg-[#8df85f]/15 text-[#8df85f] border border-[#8df85f]/30' :
+                        'bg-gray-800 text-gray-400'
+                      }`}>
+                        {tier}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-bold font-mono ${isHighRisk ? 'text-[#f38933]' : 'text-white'}`}>
+                          {log.risk_score ?? log.riskScore ?? 0}%
+                        </span>
+                        {isHighRisk && <AlertCircle className="w-3.5 h-3.5 text-[#f38933]" />}
                       </div>
                     </td>
-
-                    <td className="py-3.5 px-5">
-                      <div className="font-semibold text-white">{log.user_id}</div>
-                      <div className="text-[10px] text-[#8e8f96]">{log.department}</div>
+                    <td className="py-4 px-4">
+                      <span className={`font-mono text-[11px] font-semibold ${
+                        action === 'BLOCK' ? 'text-[#f38933]' :
+                        action === 'MASK' ? 'text-[#8df85f]' : 'text-slate-300'
+                      }`}>
+                        {action}
+                      </span>
                     </td>
-
-                    <td className="py-3.5 px-5 font-mono text-white">
-                      {log.destination_domain}
-                    </td>
-
-                    <td className="py-3.5 px-5">
-                      <div className="flex flex-wrap gap-1">
-                        {(log.compliance_tags && log.compliance_tags.length > 0 ? log.compliance_tags : ['RBI-DLP-2023']).map((tag) => (
-                          <span
-                            key={tag}
-                            className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#8df85f]/10 text-[#8df85f] border border-[#8df85f]/20 font-bold"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-
-                    <td className="py-3.5 px-5">
-                      <span
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold font-mono ${
-                          isBlock
-                            ? 'bg-[#f38933]/15 text-[#f38933] border border-[#f38933]/30'
-                            : isMask
-                            ? 'bg-white/10 text-white border border-white/20'
-                            : 'bg-[#8df85f]/15 text-[#8df85f] border border-[#8df85f]/30'
+                    <td className="py-4 px-4" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => toggleIncorrectClassification(log.id)}
+                        className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 border font-semibold text-[10px] transition cursor-pointer ${
+                          log.incorrectClassification
+                            ? 'bg-[#f38933]/10 border-[#f38933] text-[#f38933]'
+                            : 'border-[#23252c] text-[#8e8f96] hover:text-white hover:border-white'
                         }`}
                       >
-                        {log.enforcement_action}
-                      </span>
-                    </td>
-
-                    <td className="py-3.5 px-5 font-mono font-bold">
-                      <span className={isBlock ? 'text-[#f38933]' : isMask ? 'text-white' : 'text-[#8df85f]'}>
-                        {log.risk_score}/100
-                      </span>
-                    </td>
-
-                    <td className="py-3.5 px-5 font-mono text-[11px]">
-                      <div className="flex items-center gap-1.5 text-white">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#8df85f]" />
-                        <span className="text-[#8df85f] font-semibold">
-                          {(log.audit_hash || 'SHA256_' + (log.id || 'VALID')).slice(0, 14)}...
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-[#8e8f96]">
-                        prev: {(log.prev_hash || 'GENESIS_0000').slice(0, 10)}...
-                      </div>
-                    </td>
-
-                    <td className="py-3.5 px-5 text-right">
-                      <button
-                        onClick={() => handleOpenDetokenize(log)}
-                        className="px-2.5 py-1 rounded-lg bg-[#121316] border border-[#23252c] text-white hover:border-white text-[11px] font-medium transition cursor-pointer"
-                      >
-                        Inspect Vault
+                        <RefreshCw className="w-3 h-3" />
+                        {log.incorrectClassification ? 'Flagged' : 'Report'}
                       </button>
                     </td>
                   </tr>
                 );
               })}
+
+              {filteredLogs.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-[#8e8f96] font-semibold">
+                    No matching audit records in database.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Cryptographic Detokenization Modal */}
-      {detokenizeModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#0c0c0e] border border-[#161619] rounded-[28px] w-full max-w-lg p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#161619] pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#121316] border border-[#23252c] flex items-center justify-center text-[#f38933]">
-                  <Key className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white uppercase tracking-wider text-xs">
-                    Authorized SOC Detokenization
-                  </h3>
-                  <p className="text-[11px] text-[#8e8f96]">AES-256-GCM Envelope Recovery</p>
-                </div>
+      {/* Forensic Inspection & Detokenization Modal */}
+      {selectedLog && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0c0c0e] border border-[#161619] rounded-[28px] max-w-2xl w-full p-8 space-y-6 relative shadow-2xl">
+            <button
+              onClick={() => setSelectedLog(null)}
+              className="absolute top-6 right-6 text-[#8e8f96] hover:text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="w-5 h-5 text-[#8df85f]" />
+                <h3 className="text-xl font-extrabold uppercase font-sans text-white">
+                  Forensic Incident Inspection: {selectedLog.id}
+                </h3>
               </div>
-              <button
-                onClick={() => setDetokenizeModalOpen(false)}
-                className="text-[#8e8f96] hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <p className="text-xs text-[#8e8f96]">
+                Immutable cryptographic audit record recorded by SecureFlow AI DLP Gateway.
+              </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-xs font-mono bg-[#121316] border border-[#21232a] p-4 rounded-2xl">
               <div>
-                <label className="text-xs text-white block mb-1 font-semibold">HMAC Token</label>
-                <input
-                  type="text"
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                  placeholder="TOK_CREDIT_CARD_..."
-                  className="w-full bg-[#121316] border border-[#23252c] rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-white"
-                />
+                <span className="text-[#8e8f96] block text-[10px] uppercase">User & Department:</span>
+                <span className="text-white font-semibold">
+                  {selectedLog.user_id || 'N/A'} ({selectedLog.department || 'banking'})
+                </span>
               </div>
-
               <div>
-                <label className="text-xs text-white block mb-1 font-semibold">
-                  SOC Officer Secret Authorization Key
-                </label>
-                <input
-                  type="password"
-                  value={authKeyInput}
-                  onChange={(e) => setAuthKeyInput(e.target.value)}
-                  placeholder="Enter authorized SOC master key..."
-                  className="w-full bg-[#121316] border border-[#23252c] rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-white"
-                />
-                <span className="text-[10px] text-[#8e8f96] block mt-1">
-                  Default Bank Key: bank-soc-super-secret-key-2026
+                <span className="text-[#8e8f96] block text-[10px] uppercase">Destination Domain:</span>
+                <span className="text-[#8df85f] font-semibold">
+                  {selectedLog.destination_domain || 'Internal'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[#8e8f96] block text-[10px] uppercase">Source Client:</span>
+                <span className="text-white">
+                  {selectedLog.client_id || 'daemon'} ({selectedLog.source_action || 'clipboard'})
+                </span>
+              </div>
+              <div>
+                <span className="text-[#8e8f96] block text-[10px] uppercase">Risk & Enforcement:</span>
+                <span className={selectedLog.enforcement_action === 'BLOCK' ? 'text-[#f38933] font-bold' : 'text-[#8df85f] font-bold'}>
+                  {selectedLog.risk_score}% — {selectedLog.enforcement_action}
                 </span>
               </div>
 
+              {/* Threat Category & Detailed Explanation */}
+              <div className="col-span-2 pt-2 border-t border-[#21232a] space-y-1.5 font-sans">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8e8f96] text-[10px] uppercase font-bold flex items-center gap-1 font-mono">
+                    <Info className="w-3 h-3 text-[#8df85f]" />
+                    Threat Classification & Explainability:
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase font-mono ${
+                    (selectedLog.threat_category || selectedLog.threatCategory || '').includes('CRITICAL') || (selectedLog.threat_category || selectedLog.threatCategory || '').includes('EXPOSURE')
+                      ? 'bg-[#f38933]/20 text-[#f38933] border border-[#f38933]/30'
+                      : 'bg-[#8df85f]/15 text-[#8df85f] border border-[#8df85f]/30'
+                  }`}>
+                    {selectedLog.threat_category || selectedLog.threatCategory || 'BENIGN_DATA'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 bg-black/40 p-2.5 rounded-xl border border-[#21232a] leading-relaxed">
+                  {selectedLog.explanation || 'Clean transaction verified against enterprise banking security baseline.'}
+                </p>
+              </div>
+
+              {/* Compliance & Regulatory Framework Tags */}
+              {((selectedLog.compliance_tags || selectedLog.complianceImpact) && (selectedLog.compliance_tags || selectedLog.complianceImpact).length > 0) && (
+                <div className="col-span-2 space-y-1 font-sans">
+                  <span className="text-[#8e8f96] text-[10px] uppercase font-bold flex items-center gap-1 font-mono">
+                    <Scale className="w-3 h-3 text-[#8e8f96]" />
+                    Regulatory Compliance Mapping:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(selectedLog.compliance_tags || selectedLog.complianceImpact).map((tag, idx) => (
+                      <span key={idx} className="px-2 py-0.5 rounded bg-[#16181d] border border-[#262833] text-[10px] font-mono text-slate-300">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Remediation Advice */}
+              {(selectedLog.remediation_advice || selectedLog.remediationAdvice) && (
+                <div className="col-span-2 text-[11px] text-[#8e8f96] flex items-start gap-1.5 font-sans pt-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#8df85f] shrink-0 mt-0.5" />
+                  <span><strong className="text-white">Remediation Action: </strong>{selectedLog.remediation_advice || selectedLog.remediationAdvice}</span>
+                </div>
+              )}
+
+              {/* Cryptographic SHA-256 Ledger Chain (Immutable Audit Proof) */}
+              <div className="col-span-2 pt-2 border-t border-[#21232a] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8e8f96] block text-[10px] uppercase font-bold flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#8df85f]" />
+                    Cryptographic Audit Chain (Immutable SHA-256):
+                  </span>
+                  <span className="text-[9px] text-[#8df85f] font-mono bg-[#8df85f]/10 px-2 py-0.5 rounded border border-[#8df85f]/30">
+                    SOC2 / ISO 42001 Validated
+                  </span>
+                </div>
+                <div className="space-y-1 bg-black/40 p-2.5 rounded-xl border border-[#21232a] text-[10px]">
+                  {selectedLog.prev_hash && (
+                    <div className="truncate">
+                      <span className="text-[#8e8f96]">Prev Hash: </span>
+                      <span className="text-slate-400 select-all">{selectedLog.prev_hash}</span>
+                    </div>
+                  )}
+                  {selectedLog.audit_hash && (
+                    <div className="truncate">
+                      <span className="text-[#8e8f96]">Record Hash: </span>
+                      <span className="text-[#8df85f] font-bold select-all">{selectedLog.audit_hash}</span>
+                    </div>
+                  )}
+                  {selectedLog.payload_sha256 && (
+                    <div className="truncate">
+                      <span className="text-[#8e8f96]">Payload Hash: </span>
+                      <span className="text-slate-400 select-all">{selectedLog.payload_sha256}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Cryptographic Detokenization Utility */}
+            <div className="space-y-3 border-t border-[#161619] pt-4">
+              <div className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-[#8df85f]" />
+                <span className="text-xs font-bold uppercase tracking-wider text-white">
+                  Authorized Detokenization Vault
+                </span>
+              </div>
+              <p className="text-[11px] text-[#8e8f96]">
+                Security Officers can detokenize masked HMAC-SHA256 tokens using the cryptographic master key.
+              </p>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Paste token, e.g. [TOKEN:5f2b...] or paste ciphertext..."
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  className="flex-1 bg-[#121316] border border-[#21232a] rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-[#8e8f96] focus:outline-none focus:border-white"
+                />
+                <button
+                  onClick={handleDetokenize}
+                  disabled={detokenizing}
+                  className="bg-white text-black font-bold text-xs px-4 py-2 rounded-xl hover:scale-105 transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  {detokenizing ? 'Decrypting...' : 'Detokenize'}
+                </button>
+              </div>
+
               {detokenizedResult && (
-                <div className="p-4 rounded-2xl bg-[#121316] border border-[#23252c] space-y-2">
-                  <div className="text-[11px] font-semibold text-[#8df85f] flex items-center gap-1.5">
-                    <CheckCircle className="w-4 h-4" /> Decrypted Plaintext Value:
+                <div className="p-3 bg-[#121316] border border-[#8df85f]/40 rounded-xl text-xs font-mono space-y-1">
+                  <div className="text-[#8df85f] font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Decrypted Plaintext Value:
                   </div>
-                  <div className="text-base font-mono font-bold text-white bg-[#0c0c0e] p-3 rounded-xl border border-[#161619] select-all">
-                    {detokenizedResult.plaintext_value}
-                  </div>
-                  <div className="text-[10px] text-[#8e8f96] font-mono flex justify-between">
-                    <span>Classification: {detokenizedResult.entity_type}</span>
-                    <span>Key Version: {detokenizedResult.key_version}</span>
+                  <div className="text-white bg-black/40 p-2 rounded border border-[#21232a] select-all">
+                    {detokenizedResult.plaintext}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#161619]">
+            <div className="flex justify-end pt-2">
               <button
-                onClick={() => setDetokenizeModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#8e8f96] hover:text-white cursor-pointer"
+                onClick={() => setSelectedLog(null)}
+                className="bg-[#121316] border border-[#21232a] text-white hover:border-white px-5 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
               >
-                Close
-              </button>
-              <button
-                onClick={executeDetokenization}
-                disabled={detokenizing}
-                className="px-5 py-2 rounded-xl bg-white text-black text-xs font-bold transition hover:scale-105 flex items-center gap-2 cursor-pointer shadow-md"
-              >
-                <Key className="w-3.5 h-3.5" />
-                {detokenizing ? 'Decrypting...' : 'Authorize & Decrypt'}
+                Close Inspection
               </button>
             </div>
           </div>

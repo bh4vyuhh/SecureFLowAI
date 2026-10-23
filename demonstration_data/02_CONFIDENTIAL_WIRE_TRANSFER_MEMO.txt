@@ -1,0 +1,31 @@
+CONFIDENTIAL BANKING SETTLEMENT MEMORANDUM
+DATE: October 23, 2026
+CLASSIFICATION: HIGHLY CONFIDENTIAL / RESTRICTED
+DEPARTMENT: Treasury & Liquidity Management Division
+AUTHOR: Marcus Sterling (Treasury Officer ID: TR-8921)
+
+RE: EXECUTION OF CROSS-BORDER LIQUIDITY FACILITY FOR PROJECT ALPHA
+
+Please execute the following expedited inter-bank wire transfer immediately upon receipt:
+
+1. REMITTER INFORMATION:
+   - Ordering Customer: Global Corporate Holdings Ltd.
+   - Originating Account: 9021-4820-1192
+   - Debit Clearing Center: BankCorp International Central Vault
+   - Originating ABA Transit Routing: 021000021
+
+2. BENEFICIARY DETAILS:
+   - Primary Corporate Beneficiary: Helios Capital Partners Escrow
+   - Beneficiary International Bank: Deutsche Bank AG, Frankfurt
+   - Beneficiary SWIFT / BIC Code: DEUTDEDDFXX
+   - Beneficiary IBAN: DE89 3704 0044 0532 0130 00
+   - Secondary Intermediary BIC: CHASUS33XXX (JPMorgan Chase NY)
+
+3. TRANSACTION PARAMETERS:
+   - Remittance Amount: $28,500,000.00 USD
+   - Value Date: 2026-10-24
+   - Settlement Code: RTGS-URGENT-WIRE
+   - Authorization Token: SHA256:d8a2f9c3b1e704...
+   - Authorized By CISO: David H. Miller (Approval Hash: 8f9b20...)
+
+WARNING: This document contains customer proprietary banking details, international account numbers, and cryptographic settlement instructions protected under GLBA, PCI-DSS, and the Bank Secrecy Act. Unauthorized transmission across untrusted external networks is strictly prohibited and subject to automated cryptographic blocking.

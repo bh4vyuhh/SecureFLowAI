@@ -1,0 +1,7 @@
+Employee_ID,Full_Name,Department,Designation,Social_Security_Number,ABA_Routing,Account_Number,Annual_Base_Salary,Bonus_EUR,Corporate_Email
+EMP-10492,Alexander Wright,Executive Leadership,Chief Executive Officer,123-45-6789,021000021,8921049281,$1450000,€850000,a.wright@bankcorp.internal
+EMP-10821,Victoria Vance,Treasury & Liquidity,Chief Financial Officer,987-65-4321,121000358,4521093821,$980000,€420000,v.vance@bankcorp.internal
+EMP-11044,Samantha Jenkins,Investment Banking,Managing Director M&A,456-78-1234,071000013,6710492819,$780000,€650000,s.jenkins@bankcorp.internal
+EMP-11290,Dmitri Petrov,Trading & Risk,Head of Quantitative Derivatives,321-65-9874,026009593,3401928472,$620000,€380000,d.petrov@bankcorp.internal
+EMP-11582,Elena Rostova,SecOps & Operations,Chief Information Security Officer,654-98-3210,021000021,9021847291,$540000,€180000,e.rostova@bankcorp.internal
+EMP-11933,Liam O'Connor,Retail Banking,Head of Wealth Advisory,789-12-3456,122000496,1294820194,$420000,€120000,l.oconnor@bankcorp.internal

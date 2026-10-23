@@ -1,0 +1,47 @@
+================================================================================
+SECUREFLOW AI - CRITICAL DLP TEST PAYLOADS (HIGH RISK / BLOCK TIER)
+================================================================================
+Use these sample payloads to demonstrate real-time interception, cryptographic
+HMAC masking, and exfiltration blocking across Browser Extension and SOC Console.
+
+--- PAYLOAD 1: Direct Credit Card & Cardholder Exfiltration ---
+Employee Johnathan Doe (Dept: Treasury & Liquidity)
+Cardholder Name: Alice M. Sterling
+Account Number: 4532 8912 3456 9812
+Expiration: 08/28
+CVV: 891
+Billing Zip: 10001
+Expected Action: BLOCK (Tier 1 Restricted - PCI-DSS Violation)
+
+--- PAYLOAD 2: High-Value Wire Transfer with IBAN & SWIFT ---
+CONFIDENTIAL MEMORANDUM
+To: Offshore Clearing Desk
+From: Corporate Trading Desk
+Transfer Amount: $14,850,000.00 USD
+Beneficiary Bank: Barclays Bank UK
+SWIFT/BIC: BARCGB22XXX
+Beneficiary IBAN: GB29 BARC 2020 1534 8921 44
+Routing Number: 021000021
+Reference: M&A Settlement Escrow Tier-A
+Expected Action: BLOCK or MASK (GLBA / Tier 2 Confidential)
+
+--- PAYLOAD 3: Executive PII & Social Security Records ---
+CONFIDENTIAL EMPLOYEE ONBOARDING FORM
+Executive Name: Robert K. Vance
+Position: Chief Financial Officer
+Date of Birth: 1978-04-12
+Social Security Number: 123-45-6789
+Corporate Email: r.vance@bankcorp.internal
+Personal Mobile: +1 (555) 349-8120
+Home Address: 742 Evergreen Terrace, New York, NY 10021
+Expected Action: BLOCK (Tier 1 Restricted - PII Exfiltration)
+
+--- PAYLOAD 4: Cloud Infrastructure & API Secret Keys ---
+{
+  "service": "AWS S3 Production Audit Bucket",
+  "aws_access_key_id": "AKIAIOSFODNN7EXAMPLE",
+  "aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+  "db_connection": "postgres://admin:MasterKeySecret2026!@prod-db.internal:5432/core_banking",
+  "jwt_private_secret": "SecureFlowAI-Production-JWT-SecretKey-2026-BankingGrade-32Bytes!"
+}
+Expected Action: BLOCK (Secret Exposure Prevention)

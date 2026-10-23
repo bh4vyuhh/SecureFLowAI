@@ -8,15 +8,19 @@ export default function Auth({ onLogin }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password || (!isLogin && !name)) {
       toast.error('Please fill in all fields.');
       return;
     }
-    
-    toast.success(isLogin ? 'Login successful!' : 'Account registered successfully!');
-    onLogin({ name: isLogin ? 'Security Officer' : name, email });
+    try {
+      const res = await api.login(email, password);
+      toast.success(isLogin ? 'Login successful!' : 'Account registered successfully!');
+      onLogin({ name: res?.fullName || (isLogin ? 'Security Officer' : name), email, token: res?.token });
+    } catch {
+      toast.error('Authentication failed. Check credentials.');
+    }
   };
 
   return (

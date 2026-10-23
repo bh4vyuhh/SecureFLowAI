@@ -301,7 +301,92 @@
   document.addEventListener("change", handleInput, true);
 
   // ---------------------------------------------------------------------------
-  // 5. MULTI-CHANNEL SAFE DISPATCHER (Never crashes if context is invalidated)
+  // 5. ACTIVE FILE ATTACHMENT & DRAG-AND-DROP INTERCEPTION
+  // ---------------------------------------------------------------------------
+  function inspectFileObject(file, sourceElement) {
+    if (!file) return;
+
+    // A. Plain text files (.txt, .csv, .log, .json, .xml, .md, .sql)
+    if (file.type.startsWith("text/") || /\.(txt|csv|log|json|xml|md|sql)$/i.test(file.name)) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const text = e.target.result || "";
+        const detected = detectSensitivePii(text);
+        if (detected.length > 0) {
+          if (sourceElement && "value" in sourceElement) {
+            try { sourceElement.value = ""; } catch (_) {}
+          }
+          showInPageAlert(detected, `File Upload Blocked: ${file.name}`, true);
+          alert(`[SecureFlow AI Guard]\n\nUpload of "${file.name}" blocked!\nConfidential data detected:\n- ${detected.join("\n- ")}`);
+
+          safeDispatchEvent({
+            eventId: "ext-file-" + Math.random().toString(36).substring(2, 10),
+            timestamp: new Date().toISOString(),
+            source: "CHROME_EXTENSION",
+            eventType: "FILE_UPLOAD_BLOCKED",
+            fileName: file.name,
+            content: text.substring(0, 5000),
+            actionEnforced: "BLOCK",
+            metadata: {
+              url: window.location.href,
+              hostname: window.location.hostname,
+              fileSize: file.size,
+              fileType: file.type,
+              instantFlags: detected
+            }
+          });
+        }
+      };
+      reader.readAsText(file);
+    } 
+    // B. Binary documents & images (.pdf, .docx, .xlsx, .png, .jpg)
+    else if (/\.(pdf|docx|xlsx|png|jpg|jpeg|bmp)$/i.test(file.name) || file.type.startsWith("image/") || file.type === "application/pdf") {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const base64Data = (e.target.result || "").split(",")[1];
+        if (base64Data) {
+          safeDispatchEvent({
+            eventId: "ext-bin-" + Math.random().toString(36).substring(2, 10),
+            timestamp: new Date().toISOString(),
+            source: "CHROME_EXTENSION",
+            eventType: "BINARY_DOCUMENT_UPLOAD",
+            fileName: file.name,
+            fileBytesBase64: base64Data,
+            actionEnforced: "INSPECT",
+            metadata: {
+              url: window.location.href,
+              hostname: window.location.hostname,
+              fileSize: file.size,
+              fileType: file.type
+            }
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  // Intercept file picker changes
+  window.addEventListener("change", function (event) {
+    const target = event.target;
+    if (target && target.type === "file" && target.files && target.files.length > 0) {
+      for (let i = 0; i < target.files.length; i++) {
+        inspectFileObject(target.files[i], target);
+      }
+    }
+  }, true);
+
+  // Intercept drag-and-drop file drops onto web pages
+  window.addEventListener("drop", function (event) {
+    if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+      for (let i = 0; i < event.dataTransfer.files.length; i++) {
+        inspectFileObject(event.dataTransfer.files[i], null);
+      }
+    }
+  }, true);
+
+  // ---------------------------------------------------------------------------
+  // 6. MULTI-CHANNEL SAFE DISPATCHER (Never crashes if context is invalidated)
   // ---------------------------------------------------------------------------
   function safeDispatchEvent(eventPayload) {
     try {

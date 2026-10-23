@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureFlow AI - Browser Extension DLP Test Playground</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #090a0f;
+      color: #e2e8f0;
+      margin: 0;
+      padding: 30px;
+    }
+    .container {
+      max-width: 850px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #141721;
+      border: 1px solid #232738;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+    h1 {
+      color: #8df85f;
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 18px;
+      color: #cbd5e1;
+      margin-top: 0;
+    }
+    p {
+      color: #94a3b8;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      background: rgba(141, 248, 95, 0.15);
+      color: #8df85f;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .sample-box {
+      background: #1b1f2e;
+      border: 1px solid #2e3449;
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .sample-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #38bdf8;
+      margin-bottom: 8px;
+    }
+    .sample-val {
+      font-family: monospace;
+      font-size: 13px;
+      background: #0c0e17;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px dashed #334155;
+      color: #f87171;
+      user-select: all;
+      word-break: break-all;
+    }
+    .copy-btn {
+      margin-top: 8px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.2s;
+    }
+    .copy-btn:hover { background: #1d4ed8; }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      background: #0c0e17;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #f1f5f9;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s, outline 0.2s;
+    }
+    input[type="text"]:focus, textarea:focus {
+      outline: 2px solid #3b82f6;
+      border-color: #3b82f6;
+    }
+    .submit-btn {
+      background: #10b981;
+      color: #042f2e;
+      font-weight: 600;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      transition: background 0.2s;
+    }
+    .submit-btn:hover { background: #059669; color: white; }
+    .alert-preview {
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid #ef4444;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>🛡️ SecureFlow AI &bull; Browser DLP Testing Playground</h1>
+      <p>
+        Use this interactive playground to test how the <strong>SecureFlow AI Browser Extension</strong> intercepts 
+        sensitive data when you <strong>type</strong>, <strong>paste</strong>, or <strong>submit forms</strong>.
+      </p>
+      <div>
+        <span class="badge">Active Extension Mode</span>
+        <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">
+          Make sure the extension is enabled in <code>chrome://extensions</code>
+        </span>
+      </div>
+    </div>
+
+    <!-- Ready-to-copy DUMMY SAMPLES -->
+    <div class="card">
+      <h2>📋 Click to Copy Dummy Financial & PII Data</h2>
+      <p>Click any button below to copy dummy data to your clipboard, then test pasting it into the fields below.</p>
+      
+      <div class="grid">
+        <div class="sample-box">
+          <div class="sample-title">💳 Dummy Credit Card (Visa)</div>
+          <div class="sample-val" id="sample-cc">4532-8921-0043-9182</div>
+          <button class="copy-btn" onclick="copyValue('sample-cc')">Copy Credit Card</button>
+        </div>
+
+        <div class="sample-box">
+          <div class="sample-title">🆔 Dummy US Social Security Number</div>
+          <div class="sample-val" id="sample-ssn">123-45-6789</div>
+          <button class="copy-btn" onclick="copyValue('sample-ssn')">Copy SSN</button>
+        </div>
+
+        <div class="sample-box">
+          <div class="sample-title">🏦 Dummy Bank Account (IBAN)</div>
+          <div class="sample-val" id="sample-iban">DE89370400440532013000</div>
+          <button class="copy-btn" onclick="copyValue('sample-iban')">Copy IBAN</button>
+        </div>
+
+        <div class="sample-box">
+          <div class="sample-title">🔑 Dummy AWS API Key</div>
+          <div class="sample-val" id="sample-api">AKIAIOSFODNN7EXAMPLE</div>
+          <button class="copy-btn" onclick="copyValue('sample-api')">Copy API Key</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTERACTIVE TEST FORM -->
+    <div class="card">
+      <h2>🧪 Test Form 1: Real-time Typing & Paste Test</h2>
+      <p>
+        1. <strong>Test Typing:</strong> Manually type <code>4532-8921-0043-9182</code> or <code>123-45-6789</code> into the input box.<br>
+        2. <strong>Test Pasting:</strong> Paste any copied sensitive snippet into the box.<br>
+        3. <strong>Watch:</strong> The extension displays the top-right warning banner, highlights the input with red outline, and sends telemetry to the SOC.
+      </p>
+
+      <form id="test-form" onsubmit="handleFormSubmit(event)">
+        <div class="form-group">
+          <label for="recipient">Recipient Name / Account Identifier</label>
+          <input type="text" id="recipient" placeholder="e.g. John Doe / Vendor Payment" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="transfer-notes">Transaction Notes / Message (Try typing or pasting sensitive data here)</label>
+          <textarea id="transfer-notes" rows="4" placeholder="Type or paste confidential data here..." autocomplete="off"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="card-number">Payment Details (Single-line input)</label>
+          <input type="text" id="card-number" placeholder="Try typing a credit card or SSN..." autocomplete="off">
+        </div>
+
+        <button type="submit" class="submit-btn">🚀 Submit Form (Tests Form Submission Guard)</button>
+      </form>
+
+      <div class="alert-preview" id="submit-notice" style="display: none;">
+        ✅ Form submitted successfully (No sensitive PII detected).
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function copyValue(elementId) {
+      const text = document.getElementById(elementId).innerText.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Copied to clipboard: " + text + "\nNow paste or type it in the form below!");
+      }).catch(err => {
+        console.error("Copy failed", err);
+      });
+    }
+
+    function handleFormSubmit(event) {
+      // If the extension's submit guard allows it, this runs:
+      document.getElementById("submit-notice").style.display = "block";
+      document.getElementById("submit-notice").innerText = "✅ Form submitted at " + new Date().toLocaleTimeString();
+    }
+  </script>
+</body>
+</html>

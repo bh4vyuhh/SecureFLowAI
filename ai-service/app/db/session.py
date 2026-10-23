@@ -18,8 +18,21 @@ from app.db.models import Base
 logger = logging.getLogger("SecureFlowAI.Database")
 
 # Determine Database Connection URL
-# Priority: DATABASE_URL -> default local SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./secureflow_audit.db")
+# Priority: DATABASE_URL -> data/secureflow_audit.db -> fallback
+_ai_service_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_project_root = os.path.dirname(_ai_service_dir)
+_data_db_path = os.path.join(_project_root, "data", "secureflow_audit.db")
+
+if os.getenv("DATABASE_URL"):
+    DATABASE_URL = os.getenv("DATABASE_URL")
+elif os.path.exists(_data_db_path):
+    DATABASE_URL = f"sqlite:///{_data_db_path.replace(os.sep, '/')}"
+else:
+    # Ensure data directory exists in project root
+    os.makedirs(os.path.join(_project_root, "data"), exist_ok=True)
+    DATABASE_URL = f"sqlite:///{_data_db_path.replace(os.sep, '/')}"
+
+
 
 # For SQLite, ensure connect_args allows multi-threading
 connect_args = {}
