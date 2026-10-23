@@ -77,9 +77,10 @@ echo   [3] Open Sample Banking Files Directory for Drag-and-Drop Scanner
 echo   [4] Verify Cryptographic Ledger Integrity (SHA-256 Tamper Audit)
 echo   [5] Trigger Client Traffic Ingestion Simulator (30 Real-Time Events)
 echo   [6] Run Full Automated System Tests (Pytest 53/53 + Spring Boot)
+echo   [7] Open Browser Extension DLP Test Playground in Browser
 echo   [Q] Stop All Services and Exit
 echo --------------------------------------------------------------------------------
-set /p choice="Select an option [1-6, Q]: "
+set /p choice="Select an option [1-7, Q]: "
 
 if /i "%choice%"=="1" (
     echo.
@@ -132,6 +133,13 @@ if /i "%choice%"=="6" (
     echo Running AI Service pytest suite (53 tests)...
     .\.venv\Scripts\pytest.exe ai-service/tests -v
     pause
+    goto MENU
+)
+
+if /i "%choice%"=="7" (
+    echo.
+    echo Opening Browser Extension DLP Test Playground...
+    start http://localhost:5174/test_playground.html
     goto MENU
 )
 
