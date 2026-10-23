@@ -75,10 +75,10 @@ export default function FileScanner({ onNewLog }) {
         });
       }
 
-      if (scanResult.riskScore > 75) {
+      if (scanResult.riskScore > 75 || scanResult.enforcementAction === 'BLOCK') {
         toast.error(`High Risk Detected in ${selectedFile.name}: Exfiltration quarantined!`);
-      } else if (scanResult.enforcementAction === 'MASK') {
-        toast.success(`DLP Rule Triggered: Sensitive tokens masked via HMAC-SHA256.`);
+      } else if (scanResult.enforcementAction === 'MASK' || scanResult.enforcementAction === 'ENCRYPT') {
+        toast.success(`DLP Policy Applied: Sensitive tokens masked / encrypted.`);
       } else {
         toast.success(`Document cleared: No regulatory banking leaks detected.`);
       }

@@ -353,8 +353,8 @@ async def dlp_scan_endpoint(scan_req: DLPScanRequest):
     audit_writer = get_audit_writer()
     await audit_writer.enqueue_incident(incident_data, vaulted_tokens)
 
-    # Broadcast threat to WebSocket subscribers if risk > 0
-    if detection.risk_score > 0 or enforcement_action != "ALLOW":
+    # Broadcast threat to WebSocket subscribers only if sensitive threat detected
+    if detection.tier != "SAFE" and (detection.risk_score >= 45 or enforcement_action != "ALLOW"):
         dispatcher = get_event_dispatcher()
         await dispatcher.broadcast_threat({
             "type": "LIVE_THREAT_EVENT",
@@ -814,7 +814,7 @@ async def scan_legacy_endpoint(request: Request):
     except Exception as e:
         logger.warning(f"Failed to enqueue audit record for file scan {incident_id}: {e}")
 
-    if detection.risk_score > 0 or enforcement_action != "ALLOW":
+    if detection.tier != "SAFE" and (detection.risk_score >= 45 or enforcement_action != "ALLOW"):
         dispatcher = get_event_dispatcher()
         await dispatcher.broadcast_threat({
             "type": "LIVE_THREAT_EVENT",
