@@ -9,18 +9,39 @@ echo                     FULL PRODUCTION SYSTEM RUNNER
 echo ================================================================================
 echo.
 
-:: 1. Verify Virtual Environment
+:: 1. Auto-Bootstrap Python Virtual Environment if missing
 if not exist ".\.venv\Scripts\python.exe" (
-    color 0C
-    echo [ERROR] Python virtual environment not found in .\.venv\
-    pause
-    exit /b 1
+    echo [INFO] Python virtual environment not found in .\.venv\
+    echo [INFO] Automatically creating new virtual environment (.venv)...
+    where python >nul 2>&1
+    if errorlevel 1 (
+        color 0C
+        echo [ERROR] Python is not installed or not in PATH! Please install Python 3.10+ and re-run.
+        pause
+        exit /b 1
+    )
+    python -m venv .venv
+    echo [INFO] Installing required Python packages (ai-service\requirements.txt)...
+    call .\.venv\Scripts\python.exe -m pip install --upgrade pip
+    call .\.venv\Scripts\pip.exe install -r ai-service\requirements.txt
+    if exist "desktop-agent\requirements.txt" (
+        call .\.venv\Scripts\pip.exe install -r desktop-agent\requirements.txt
+    )
+    echo [OK] Virtual environment successfully created and dependencies installed.
 )
 
 :: 2. Check Node & Frontend Dependencies
 if not exist "frontend\node_modules" (
-    echo [INFO] Installing Frontend SOC console dependencies...
+    echo [INFO] Frontend node_modules not found. Installing dependencies...
+    where npm >nul 2>&1
+    if errorlevel 1 (
+        color 0C
+        echo [ERROR] Node.js / npm is not installed or not in PATH! Please install Node.js 18+ and re-run.
+        pause
+        exit /b 1
+    )
     call npm --prefix frontend install
+    echo [OK] Frontend dependencies installed.
 )
 
 echo [1/5] Terminating any stale processes on ports 8000, 9090, and 5174...
@@ -28,7 +49,22 @@ powershell -Command "Get-NetTCPConnection -LocalPort 8000,9090,5174 -ErrorAction
 timeout /t 1 /nobreak >nul
 
 echo [2/5] Starting Spring Boot Central Gateway & Crypto Vault (Port 9090)...
-start "SecureFlow AI - Spring Boot Gateway (Port 9090)" cmd /k "title Spring Boot Gateway (Port 9090) && cd backend && set JAVA_HOME=C:\Users\RUSHIKESH\.jdks\corretto-23.0.2&& set PATH=C:\Users\RUSHIKESH\.jdks\corretto-23.0.2\bin;%PATH%&& mvnw.cmd spring-boot:run"
+set "JAVA_CMD="
+if defined JAVA_HOME if exist "%JAVA_HOME%\bin\java.exe" set "JAVA_CMD=1"
+if not defined JAVA_CMD if exist "C:\Users\RUSHIKESH\.jdks\corretto-23.0.2\bin\java.exe" (
+    set "JAVA_HOME=C:\Users\RUSHIKESH\.jdks\corretto-23.0.2"
+    set "PATH=C:\Users\RUSHIKESH\.jdks\corretto-23.0.2\bin;%PATH%"
+    set "JAVA_CMD=1"
+)
+where java >nul 2>&1
+if not errorlevel 1 set "JAVA_CMD=1"
+
+if defined JAVA_CMD (
+    start "SecureFlow AI - Spring Boot Gateway (Port 9090)" cmd /k "title Spring Boot Gateway (Port 9090) && cd backend && mvnw.cmd spring-boot:run"
+) else (
+    echo [WARN] Java JDK not found in PATH or standard directory. Skipping Spring Boot (Port 9090).
+    echo        FastAPI AI Microservice (Port 8000) and Frontend (Port 5174) will run standalone.
+)
 
 echo [3/5] Starting AI Microservice (FastAPI + ONNX INT8 Engine on Port 8000)...
 start "SecureFlow AI - AI Microservice (Port 8000)" cmd /k "title AI Microservice (Port 8000) && .\.venv\Scripts\uvicorn.exe app.main:app --app-dir ai-service --host 127.0.0.1 --port 8000"
