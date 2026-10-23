@@ -176,36 +176,45 @@ class HybridDLPEngine(IDLPEngine):
             or any(e["entity_type"] == "CONFIDENTIAL_MARKER" for e in resolved_ents)
         )
 
-        if raw_tier == "RESTRICTED":
-            base_score = 75 if (has_critical or has_financial or has_sensitive_ents) else 50
-        elif is_confidential:
-            base_score = 50
-        else:
+        if not resolved_ents and not has_confidential_marker:
+            # Deterministic Zero-Entity Guard: Normal sentences, code snippets without secrets,
+            # or greetings with 0 detected sensitive entities and no confidential markers
+            # must NEVER be classified as CONFIDENTIAL or RESTRICTED.
             base_score = 15
-
-        weights = {
-            "CREDIT_CARD": 35, "PRIVATE_KEY": 40, "API_KEY": 30, "US_SSN": 30,
-            "PASSWORD_SECRET": 35, "DB_CONNECTION": 35, "JWT_TOKEN": 30,
-            "IBAN": 25, "ABA_ROUTING": 20, "SWIFT_BIC": 15, "BANK_ACCOUNT": 25, "PAN_CARD": 25,
-            "CONFIDENTIAL_MARKER": 20, "PERSON": 3, "ORG": 3, "LOCATION": 2
-        }
-        entity_impact = sum(weights.get(e["entity_type"], 2) for e in resolved_ents)
-        total_risk = min(100, base_score + entity_impact)
-
-        # Policy Enforcement Decision:
-        # BLOCK: If critical secrets exist (Cards, Keys, SSN) OR total risk >= 80
-        # ENCRYPT / MASK: If total risk >= 45 OR financial identifiers detected OR confidential metrics exist
-        # ALLOW: Normal documents without sensitive leaks
-        if has_critical or total_risk >= 80:
-            action = "BLOCK"
-            total_risk = max(total_risk, 85)
-            calibrated_tier = "RESTRICTED"
-        elif total_risk >= 45 or has_financial or is_confidential:
-            action = "ENCRYPT"
-            calibrated_tier = "CONFIDENTIAL"
-        else:
-            action = "ALLOW"
+            total_risk = 15
             calibrated_tier = "SAFE"
+            action = "ALLOW"
+        else:
+            if raw_tier == "RESTRICTED":
+                base_score = 75 if (has_critical or has_financial or has_sensitive_ents) else 50
+            elif is_confidential:
+                base_score = 50
+            else:
+                base_score = 15
+
+            weights = {
+                "CREDIT_CARD": 35, "PRIVATE_KEY": 40, "API_KEY": 30, "US_SSN": 30,
+                "PASSWORD_SECRET": 35, "DB_CONNECTION": 35, "JWT_TOKEN": 30,
+                "IBAN": 25, "ABA_ROUTING": 20, "SWIFT_BIC": 15, "BANK_ACCOUNT": 25, "PAN_CARD": 25,
+                "CONFIDENTIAL_MARKER": 20, "PERSON": 3, "ORG": 3, "LOCATION": 2
+            }
+            entity_impact = sum(weights.get(e["entity_type"], 2) for e in resolved_ents)
+            total_risk = min(100, base_score + entity_impact)
+
+            # Policy Enforcement Decision:
+            # BLOCK: If critical secrets exist (Cards, Keys, SSN) OR total risk >= 80
+            # ENCRYPT / MASK: If total risk >= 45 OR financial identifiers detected OR confidential metrics exist
+            # ALLOW: Normal documents without sensitive leaks
+            if has_critical or total_risk >= 80:
+                action = "BLOCK"
+                total_risk = max(total_risk, 85)
+                calibrated_tier = "RESTRICTED"
+            elif total_risk >= 45 or has_financial or is_confidential:
+                action = "ENCRYPT"
+                calibrated_tier = "CONFIDENTIAL"
+            else:
+                action = "ALLOW"
+                calibrated_tier = "SAFE"
 
         # 8. Threat Explainability
         explanation_data = build_threat_explanation(

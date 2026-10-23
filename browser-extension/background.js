@@ -70,18 +70,22 @@ async function handleAiScan(payload) {
   };
 
   let response = null;
+  const timeoutSignal = AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined;
   try {
     response = await fetch(DEFAULT_SCAN_URL, {
       method: "POST",
       headers: headers,
-      body: JSON.stringify(scanBody)
+      body: JSON.stringify(scanBody),
+      signal: timeoutSignal
     });
   } catch (err) {
     try {
+      const fallbackSignal = AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined;
       response = await fetch(LOCALHOST_SCAN_URL, {
         method: "POST",
         headers: headers,
-        body: JSON.stringify(scanBody)
+        body: JSON.stringify(scanBody),
+        signal: fallbackSignal
       });
     } catch (fallbackErr) {
       console.warn("[SecureFlow Service Worker] AI scan endpoint unreachable:", fallbackErr.message);

@@ -129,3 +129,38 @@ def test_long_document_sliding_window_escalation():
     assert data["action"] == "BLOCK"
     assert "[CARD_****9182]" in data["sanitized_text"]
     assert "[IBAN_GB****5432]" in data["sanitized_text"]
+
+
+def test_benign_prompt_zero_entity_guard():
+    # Conversational prompts and greetings must NEVER be blocked as confidential or restricted
+    test_prompts = [
+        "+ heloo how are you",
+        "can you help me desing a simple css button",
+        "How do I center a div in HTML and CSS?"
+    ]
+    for prompt in test_prompts:
+        resp = client.post("/api/v1/dlp/scan", json={"text": prompt, "mode": "mask"})
+        assert resp.status_code == 200
+        res = resp.json()
+        assert res["tier"] == "SAFE"
+        assert res["action"] == "ALLOW"
+        assert res["risk_score"] < 45
+        assert res["threat_category"] == "BENIGN_BUSINESS_DATA"
+
+
+def test_copilot_explainability_endpoints():
+    # 1. Frameworks query
+    r1 = client.post("/api/v1/soc/copilot/chat", json={"query": "What DLP compliance frameworks are enforced?"})
+    assert r1.status_code == 200
+    d1 = r1.json()
+    assert "PCI-DSS" in d1["response"]
+    assert "GDPR" in d1["response"]
+    assert d1["reply"] is not None
+
+    # 2. Cryptographic ledger query
+    r2 = client.post("/api/v1/soc/copilot/chat", json={"query": "How does the SHA-256 tamperproof audit ledger work?"})
+    assert r2.status_code == 200
+    d2 = r2.json()
+    assert "SHA-256" in d2["response"]
+    assert d2["reply"] is not None
+

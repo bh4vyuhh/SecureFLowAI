@@ -346,9 +346,9 @@
     const form = targetElement.closest("form");
     if (form) return { type: "form", container: form };
 
-    // B. Check if target is inside an email composer, modal dialog, or chat container
+    // B. Check if target is inside an email composer, chat input box, or prompt container
     const composer = targetElement.closest(
-      "rich-textarea, [role='dialog'], [role='region'], .compose, .composer, .Am.Al, .modal, .chat-input, .msg-form, .email-composer, table.Ao, div.AD, div.nH, div.M9, div.inboxsdk__compose, .input-area-container, .bottom-container"
+      "rich-textarea, .input-area-container, .bottom-container, .compose, .composer, .Am.Al, .chat-input, .msg-form, .email-composer, div.inboxsdk__compose"
     );
     if (composer) return { type: "composer", container: composer };
 
@@ -510,26 +510,29 @@
       );
     }
 
-    // 2. Also always scan common webmail & AI chat compose bodies (Gemini, ChatGPT, Claude, Gmail)
-    const composerSelectors = [
-      "rich-textarea",
-      "div.ql-editor",
-      "#prompt-textarea",
-      "div[role='textbox'][contenteditable='true']",
-      "div[aria-label*='Message Body' i]",
-      "div[aria-label*='Message body' i]",
-      "div.Am.Al.editable",
-    ];
-    for (let sel of composerSelectors) {
-      const matched = document.querySelectorAll(sel);
-      matched.forEach((m) => {
-        if (!elementsToScan.includes(m)) elementsToScan.push(m);
-      });
+    // 2. If no container was found, fallback to targeted active compose elements
+    if (elementsToScan.length === 0) {
+      const composerSelectors = [
+        "rich-textarea .ql-editor",
+        "rich-textarea [contenteditable='true']",
+        "#prompt-textarea",
+        ".Am.Al.editable",
+        "div[role='textbox'][contenteditable='true']",
+      ];
+      for (let sel of composerSelectors) {
+        const matched = document.querySelectorAll(sel);
+        matched.forEach((m) => {
+          if (!elementsToScan.includes(m)) elementsToScan.push(m);
+        });
+        if (elementsToScan.length > 0) break;
+      }
     }
 
-    // 3. Include document.activeElement
+    // 3. Include document.activeElement if it is an editable input
     if (document.activeElement && !elementsToScan.includes(document.activeElement)) {
-      elementsToScan.push(document.activeElement);
+      if (document.activeElement.isContentEditable || document.activeElement.tagName === "TEXTAREA" || document.activeElement.tagName === "INPUT") {
+        elementsToScan.push(document.activeElement);
+      }
     }
 
     const result = inspectElementsCollection(elementsToScan);

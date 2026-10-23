@@ -206,6 +206,7 @@ class CopilotChatRequest(BaseModel):
 
 class CopilotChatResponse(BaseModel):
     response: str = Field(..., description="Plain-English explanation or response")
+    reply: Optional[str] = Field(None, description="Direct alias for response (frontend backward compatibility)")
     suggested_action: Optional[Literal["ALLOW", "MASK", "BLOCK", "WHITELIST_DOMAIN", "FALSE_POSITIVE"]] = Field(
         None, description="Recommended remediation action"
     )

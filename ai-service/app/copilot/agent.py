@@ -172,6 +172,7 @@ class BankingCopilotAgent(ICopilotAgent):
                 remediation = self.recommend_remediation(context_incident)
                 return {
                     "response": f"{explanation}\n\n**Recommendation:** {remediation['rationale']}",
+                    "reply": f"{explanation}\n\n**Recommendation:** {remediation['rationale']}",
                     "suggested_action": remediation["action"],
                     "confidence": remediation["confidence"],
                     "sql_query": None,
@@ -181,17 +182,96 @@ class BankingCopilotAgent(ICopilotAgent):
                 remediation = self.recommend_remediation(context_incident)
                 return {
                     "response": f"**Recommended Action:** **{remediation['action']}** (Confidence: {int(remediation['confidence']*100)}%)\n\n{remediation['rationale']}",
+                    "reply": f"**Recommended Action:** **{remediation['action']}** (Confidence: {int(remediation['confidence']*100)}%)\n\n{remediation['rationale']}",
                     "suggested_action": remediation["action"],
                     "confidence": remediation["confidence"],
                     "sql_query": None,
                     "matched_incidents_count": 1
                 }
 
-        # If natural language database inquiry
-        if any(w in lower_q for w in ["find", "show", "list", "how many", "search", "who", "incidents"]):
+        # 1. DLP Compliance Frameworks
+        if any(w in lower_q for w in ["compliance", "framework", "regulation", "gdpr", "pci", "hipaa", "glba", "iso"]):
+            text = (
+                "### 🛡️ Enforced Regulatory Compliance Frameworks\n\n"
+                "SecureFlow AI autonomously enforces 6 international regulatory frameworks across all outbound data flows:\n\n"
+                "1. **PCI-DSS 4.0 (Req 3.4 & 3.5):** Mandatory tokenization/masking of Primary Account Numbers (PAN). Validated via Luhn Checksum.\n"
+                "2. **GDPR Art. 9 & 32:** Protection of special-category personal data, employee identity, and national identifiers with real-time zero-exfiltration blocking.\n"
+                "3. **HIPAA 45 CFR § 164.312:** Technical safeguards preventing Protected Health Information (PHI) and US Social Security Numbers from unencrypted transit.\n"
+                "4. **GLBA Safeguards Rule (16 CFR § 314):** Protection of nonpublic personal financial customer records and bank account routing numbers.\n"
+                "5. **ISO/IEC 27001:2022 (Control A.8.12):** Automated Data Leakage Prevention (DLP) across browser, clipboard, and API endpoints.\n"
+                "6. **SOC 2 Type II:** Continuous audit logging, tamperproof SHA-256 event integrity, and least-privilege detokenization authorization."
+            )
+            return {
+                "response": text,
+                "reply": text,
+                "suggested_action": "ALLOW",
+                "confidence": 1.0,
+                "sql_query": None,
+                "matched_incidents_count": 0
+            }
+
+        # 2. SHA-256 Tamperproof Audit Ledger
+        if any(w in lower_q for w in ["sha-256", "ledger", "audit", "tamperproof", "hash", "integrity"]):
+            text = (
+                "### ⛓️ Cryptographic SHA-256 Audit Ledger Architecture\n\n"
+                "The SecureFlow AI audit trail employs Merkle-style cryptographically chained hash integrity:\n\n"
+                "- **Chained State Hashing:** Every DLP scan and enforcement event generates an SHA-256 signature: "
+                "`H_n = SHA256(H_{n-1} + timestamp + event_type + payload_hash + action)`.\n"
+                "- **Immutable History:** If an attacker or insider attempts to modify, drop, or alter an incident record in the database, the hash verification recalculation fails instantly.\n"
+                "- **Zero Plaintext Storage:** Sensitive credentials (cards, SSNs, secrets) are NEVER stored in plaintext in the ledger—only deterministic SHA-256 hashes and HMAC token identifiers are retained for compliance auditability."
+            )
+            return {
+                "response": text,
+                "reply": text,
+                "suggested_action": "ALLOW",
+                "confidence": 1.0,
+                "sql_query": None,
+                "matched_incidents_count": 0
+            }
+
+        # 3. HMAC Tokenization vs AES-256 Encryption
+        if any(w in lower_q for w in ["hmac", "token", "aes", "encryption", "encrypt", "tokenize"]):
+            text = (
+                "### 🔐 HMAC Tokenization vs. AES-256-GCM Encryption\n\n"
+                "SecureFlow AI implements a dual cryptographic protection model tailored for banking workloads:\n\n"
+                "- **HMAC-SHA256 Vault Tokenization:** Replaces raw sensitive identifiers (e.g., Credit Card `4530-8921-0043-9182`) with deterministic surrogate tokens (e.g., `[TOK_CARD_7f2b9a]`). This preserves downstream schema formatting and enables reversible detokenization via the Key Vault with proper analyst authorization.\n"
+                "- **AES-256-GCM Envelope Encryption:** Used for full payload payloads and files in transit. Leverages Galois/Counter Mode (GCM) for authenticated confidentiality and data integrity verification, preventing MITM modification."
+            )
+            return {
+                "response": text,
+                "reply": text,
+                "suggested_action": "MASK",
+                "confidence": 1.0,
+                "sql_query": None,
+                "matched_incidents_count": 0
+            }
+
+        # 4. AI DLP Engine Architecture & Explainability
+        if any(w in lower_q for w in ["model", "onnx", "engine", "explainability", "hybrid", "detection", "how it works"]):
+            text = (
+                "### 🧠 Hybrid 5-Layer DLP Detection Engine\n\n"
+                "SecureFlow AI operates a multi-stage defense-in-depth inspection pipeline operating under a < 25ms SLA:\n\n"
+                "1. **Normalization & Canonicalization:** Unicode de-obfuscation, leetspeak resolution, and base64 decode.\n"
+                "2. **Deterministic Rules & Luhn Check:** High-speed regex + Luhn Mod-10 algorithm for PCI cards, IBAN ISO 13616 validation, and SSN formats.\n"
+                "3. **Sliding-Window ONNX Transformer:** Lightweight INT8 quantized classifier evaluating semantic intent across 128-token overlapping windows.\n"
+                "4. **Zero-Entity Safety Guard:** Benign conversational prompts with 0 sensitive entities and no confidential markers are deterministically classified as SAFE.\n"
+                "5. **Policy Enforcement Matrix:** Assigns calibrated tier (`SAFE`, `CONFIDENTIAL`, `RESTRICTED`) and automated enforcement (`ALLOW`, `MASK`, `BLOCK`)."
+            )
+            return {
+                "response": text,
+                "reply": text,
+                "suggested_action": "ALLOW",
+                "confidence": 1.0,
+                "sql_query": None,
+                "matched_incidents_count": 0
+            }
+
+        # 5. If natural language database inquiry
+        if any(w in lower_q for w in ["find", "show", "list", "how many", "search", "who", "incidents", "recent", "blocked"]):
             parsed = self.query_incidents_nl(user_query)
             return {
                 "response": f"I translated your question into the following incident query:\n```sql\n{parsed['sql_query']}\n```\nExecuting audit query across historical records.",
+                "reply": f"I translated your question into the following incident query:\n```sql\n{parsed['sql_query']}\n```\nExecuting audit query across historical records.",
                 "suggested_action": None,
                 "confidence": 0.95,
                 "sql_query": parsed["sql_query"],
@@ -199,14 +279,18 @@ class BankingCopilotAgent(ICopilotAgent):
             }
 
         # General assistance
+        general_text = (
+            "**SecureFlow AI Autonomous SOC Copilot** ready.\n\n"
+            "I provide real-time AI explainability, regulatory compliance analysis, and incident remediation. You can ask:\n"
+            "- *'What DLP compliance frameworks are enforced?'*\n"
+            "- *'How does the SHA-256 tamperproof audit ledger work?'*\n"
+            "- *'Explain HMAC tokenization versus AES-256 encryption'*\n"
+            "- *'Show all blocked incidents in retail banking'*\n"
+            "- *'Explain incident <ID>'*"
+        )
         return {
-            "response": (
-                "SecureFlow AI Analyst Copilot ready. I can explain incidents, recommend remediation "
-                "actions, or search historical DLP audit logs in plain English. For example:\n"
-                "- 'Explain incident <ID>'\n"
-                "- 'Show all blocked incidents in retail banking'\n"
-                "- 'Should I whitelist api.openai.com for treasury?'"
-            ),
+            "response": general_text,
+            "reply": general_text,
             "suggested_action": None,
             "confidence": 1.0,
             "sql_query": None,

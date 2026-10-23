@@ -492,6 +492,8 @@ def copilot_chat_endpoint(req: CopilotChatRequest, db: Session = Depends(get_db)
             }
 
     result = copilot.chat(req.query, context_incident=context_dict)
+    if "reply" not in result:
+        result["reply"] = result.get("response", "")
     return CopilotChatResponse(**result)
 
 

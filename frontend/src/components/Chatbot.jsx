@@ -44,7 +44,7 @@ export default function Chatbot() {
       const copilotMessage = {
         id: `ai-${Date.now()}`,
         sender: 'copilot',
-        text: response.reply || response.answer || "Query processed by analyst copilot.",
+        text: response.response || response.reply || response.answer || response.text || "Query processed by analyst copilot.",
         citations: response.citations || [],
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };

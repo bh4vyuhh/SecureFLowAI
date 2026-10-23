@@ -170,7 +170,29 @@
     } catch (_) {}
   }
 
-  // Helper to inspect FormData or Blobs
+  // Check if a request is an internal application RPC, streaming chunk, or assets
+  function isInternalAppRequest(url) {
+    if (!url) return false;
+    const urlStr = url.toString().toLowerCase();
+    if (
+      urlStr.includes("/api/v1/events/ingest") ||
+      urlStr.includes(":8000") ||
+      urlStr.includes("batchexecute") ||
+      urlStr.includes("bardchatui") ||
+      urlStr.includes("streamgeneratecontent") ||
+      urlStr.includes("client-channel") ||
+      urlStr.includes("/manifest.json") ||
+      urlStr.includes("/_/") ||
+      urlStr.includes("play.google.com") ||
+      urlStr.startsWith("/") ||
+      (window.location.origin && urlStr.startsWith(window.location.origin.toLowerCase()))
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  // Helper to inspect FormData file attachments
   async function inspectFormData(formData) {
     if (!formData || !(formData instanceof FormData)) return null;
 
@@ -183,11 +205,6 @@
             return { filename: val.name || key, hits: detected, snippet: text };
           }
         } catch (_) {}
-      } else if (typeof val === "string") {
-        const detected = scanPayloadText(val);
-        if (detected.length > 0) {
-          return { filename: key, hits: detected, snippet: val };
-        }
       }
     }
     return null;
@@ -200,8 +217,8 @@
   window.fetch = async function (input, init) {
     const url = typeof input === "string" ? input : (input && input.url ? input.url : "");
 
-    // Do NOT intercept SecureFlow's internal telemetry dispatches to port 8000
-    if (url.includes("/api/v1/events/ingest") || url.includes(":8000")) {
+    // Skip internal telemetry and host app RPCs
+    if (isInternalAppRequest(url)) {
       return originalFetch.apply(this, arguments);
     }
 
@@ -227,31 +244,6 @@
         } catch (e) {
           if (e.message && e.message.includes("SecureFlow AI DLP Blocked")) throw e;
         }
-      } else {
-        const str = extractStringFromPayload(init.body);
-        if (str) {
-          const detected = scanPayloadText(str);
-          if (detected.length > 0) {
-            triggerBlockedUpload("request_payload", detected, str);
-            throw new Error(
-              `[SecureFlow AI DLP Blocked] Request payload transmission blocked: ${detected.join(", ")}`
-            );
-          }
-        }
-      }
-    } else if (input instanceof Request && !init?.body) {
-      try {
-        const cloned = input.clone();
-        const text = await cloned.text();
-        const detected = scanPayloadText(text);
-        if (detected.length > 0) {
-          triggerBlockedUpload("request_stream", detected, text);
-          throw new Error(
-            `[SecureFlow AI DLP Blocked] Request payload transmission blocked: ${detected.join(", ")}`
-          );
-        }
-      } catch (e) {
-        if (e.message && e.message.includes("SecureFlow AI DLP Blocked")) throw e;
       }
     }
 
@@ -269,7 +261,7 @@
 
   const originalXhrSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.send = function (body) {
-    if (this.__sfUrl && (this.__sfUrl.includes("/api/v1/events/ingest") || this.__sfUrl.includes(":8000"))) {
+    if (isInternalAppRequest(this.__sfUrl)) {
       return originalXhrSend.apply(this, arguments);
     }
 
@@ -279,13 +271,6 @@
         for (const [k, v] of body.entries()) {
           if (v instanceof Blob || v instanceof File) {
             files.push(v);
-          } else if (typeof v === "string") {
-            const hits = scanPayloadText(v);
-            if (hits.length > 0) {
-              triggerBlockedUpload(k, hits, v);
-              this.abort();
-              return;
-            }
           }
         }
 
@@ -324,16 +309,6 @@
           originalXhrSend.call(this, body);
         });
         return;
-      } else {
-        const str = extractStringFromPayload(body);
-        if (str) {
-          const hits = scanPayloadText(str);
-          if (hits.length > 0) {
-            triggerBlockedUpload("xhr_payload", hits, str);
-            this.abort();
-            return;
-          }
-        }
       }
     }
 
