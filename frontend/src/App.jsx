@@ -101,18 +101,7 @@ export default function App() {
           // Re-fetch stats when new threat arrives
           fetchStats();
 
-          // Only alert on legitimate threats or masking actions - ZERO fake/benign popups
-          if (inc.enforcement_action === 'BLOCK') {
-            toast.error(
-              `Live Exfiltration Blocked: ${inc.user_id || 'User'} (${inc.department || 'DLP'}) -> ${inc.destination_domain || 'External'}`,
-              { duration: 4500 }
-            );
-          } else if (inc.enforcement_action === 'MASK') {
-            toast(
-              `Live Sensitive Data Masked: ${inc.destination_domain || 'Internal'}`,
-              { icon: '🔒', duration: 3500 }
-            );
-          }
+          // Updates live incident lists and stats silently without spamming screen toasts
         }
       },
       (status) => setWsStatus(status)

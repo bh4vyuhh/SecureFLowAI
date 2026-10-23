@@ -15,17 +15,38 @@
     SWIFT_BIC: /\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/i,
     API_KEY: /\b(?:sk_live_[0-9a-zA-Z]{24,}|ghp_[0-9a-zA-Z]{36}|AKIA[0-9A-Z]{16}|(?:key|secret|token|password)[a-zA-Z0-9_]{10,40})\b/i,
     PRIVATE_KEY: /-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----/i,
-    EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
   };
+
+  function luhnCheck(cardStr) {
+    const digits = (cardStr || "").replace(/\D/g, "");
+    if (digits.length < 13 || digits.length > 19) return false;
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let digit = parseInt(digits.charAt(i), 10);
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+  }
 
   function detectSensitivePii(text) {
     if (!text || typeof text !== "string") return [];
     const hits = [];
-    if (DLP_PATTERNS.CREDIT_CARD.test(text)) hits.push("Credit Card (PCI-DSS)");
+
+    // Credit Card with mandatory mathematical Luhn validation to avoid false positives
+    const cardMatch = text.match(DLP_PATTERNS.CREDIT_CARD);
+    if (cardMatch && luhnCheck(cardMatch[0])) {
+      hits.push("Credit Card (PCI-DSS)");
+    }
+
     if (DLP_PATTERNS.SSN.test(text)) hits.push("US SSN");
     if (DLP_PATTERNS.IBAN.test(text)) hits.push("IBAN Bank Account");
     if (DLP_PATTERNS.SWIFT_BIC.test(text)) hits.push("SWIFT / BIC");
-    if (DLP_PATTERNS.ABA_ROUTING.test(text)) hits.push("ABA Routing Number");
     if (DLP_PATTERNS.PRIVATE_KEY.test(text)) hits.push("Cryptographic Private Key");
     if (DLP_PATTERNS.API_KEY.test(text)) hits.push("Live API Credential");
     return hits;
@@ -270,7 +291,7 @@
           element.dataset.sfFlagged = "true";
         }
 
-        showInPageAlert(detected, "Typing Detected", false);
+        // Silent visual badge on input border without spawning disruptive popups
         console.warn("%c[SecureFlow DLP Typing Warning]%c", "color: #ff4d4f; font-weight: bold;", "", detected);
 
         safeDispatchEvent({

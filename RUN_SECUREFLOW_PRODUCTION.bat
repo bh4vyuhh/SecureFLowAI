@@ -86,22 +86,18 @@ echo Warming up INT8 model session - attempt %RETRIES% of 15...
 goto WAIT_API
 
 :LAUNCH_FRONTEND
-echo [3/4] Starting Frontend SOC Console on Port 5174 (Vite React)...
+echo [3/3] Starting Frontend SOC Console on Port 5174 (Vite React)...
 start "SecureFlow AI - Frontend SOC Console (Port 5174)" /min cmd /k "title Frontend SOC Portal (Port 5174) && cd /d %~dp0frontend && npm run dev"
-
-echo [4/4] Starting Real-Time Desktop Clipboard Interceptor...
-start "SecureFlow AI - Desktop Clipboard Agent" /min cmd /k "title Desktop Clipboard Agent (Real-Time DLP) && cd /d %~dp0 && .\.venv\Scripts\python.exe desktop-agent\main.py"
 
 ping -n 3 127.0.0.1 >nul
 
 echo.
 echo ================================================================================
-echo [SUCCESS] ALL SECUREFLOW AI SUBSYSTEMS ARE RUNNING IN REAL TIME!
+echo [SUCCESS] SECUREFLOW AI SERVICES ARE RUNNING IN REAL TIME!
 echo ================================================================================
 echo   - AI Microservice (ONNX INT8):   http://127.0.0.1:8000
 echo   - Live Threat WebSocket Hub:     ws://127.0.0.1:8000/ws/live-threats
 echo   - Admin SOC Console (React):     http://localhost:5174
-echo   - Desktop Clipboard Interceptor: ACTIVE in Background
 echo ================================================================================
 echo.
 echo Opening default browser to Admin SOC Dashboard (http://localhost:5174)...

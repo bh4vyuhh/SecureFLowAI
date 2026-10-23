@@ -52,13 +52,38 @@ export const api = {
 
   // File Upload Inspection (.pdf, .docx, .xlsx, .zip, images)
   scanFileUpload: async (file, mode = 'mask') => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('mode', mode);
-    const res = await client.post('/api/v1/dlp/scan', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return res.data;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('mode', mode);
+      const res = await client.post('/api/v1/dlp/scan', formData, {
+        headers: { 'Content-Type': undefined },
+        timeout: 60000,
+      });
+      return res.data;
+    } catch (err) {
+      console.warn('Multipart upload encountered issue, falling back to base64 scanner:', err);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const raw = String(reader.result || '');
+            const base64Data = raw.includes(',') ? raw.split(',')[1] : raw;
+            const res = await api.scanDLP({
+              fileName: file.name,
+              fileBytesB64: base64Data,
+              mode: mode,
+              sourceAction: 'file_scanner_upload',
+            });
+            resolve(res);
+          } catch (b64Err) {
+            reject(b64Err);
+          }
+        };
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(file);
+      });
+    }
   },
 
   // SOC Analytics & Audit

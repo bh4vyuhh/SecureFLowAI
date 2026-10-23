@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, FileText, ShieldCheck, Mail, Send, Download, RefreshCw, AlertCircle, FileCheck, Lock, Key, Info, Scale, CheckCircle2, Activity } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Upload, FileText, ShieldCheck, Mail, Send, Download, RefreshCw, AlertCircle, FileCheck, Lock, Key, Info, Scale, CheckCircle2, Activity, Play } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
@@ -8,6 +8,7 @@ export default function FileScanner({ onNewLog }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState(null);
+  const fileInputRef = useRef(null);
 
   const handleFileUpload = async (selectedFile) => {
     if (!selectedFile) return;
@@ -126,7 +127,8 @@ export default function FileScanner({ onNewLog }) {
             onDragOver={handleDrag}
             onDragLeave={handleDrag}
             onDrop={handleDrop}
-            className={`bg-[#0c0c0e] border border-dashed rounded-[28px] p-12 flex flex-col items-center justify-center transition-all duration-300 min-h-[360px] text-center ${
+            onClick={() => fileInputRef.current?.click()}
+            className={`bg-[#0c0c0e] border border-dashed rounded-[28px] p-12 flex flex-col items-center justify-center transition-all duration-300 min-h-[360px] text-center cursor-pointer ${
               isDragOver ? 'border-[#8df85f] bg-[#121316]' : 'border-[#161619] hover:border-[#23252c]'
             }`}
           >
@@ -141,18 +143,78 @@ export default function FileScanner({ onNewLog }) {
               Select or drop any real document (.pdf, .docx, .xlsx, .csv, .txt, .json, .zip, .png, .jpg) for server-side inspection.
             </p>
 
-            <label className="bg-white text-black font-semibold text-xs px-6 py-2.5 rounded-xl hover:scale-105 transition cursor-pointer shadow-md">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              className="bg-white text-black font-semibold text-xs px-6 py-2.5 rounded-xl hover:scale-105 transition cursor-pointer shadow-md"
+            >
               Browse Files From Device
-              <input
-                type="file"
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleFileUpload(e.target.files[0]);
-                  }
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  const selected = e.target.files[0];
+                  e.target.value = '';
+                  handleFileUpload(selected);
+                }
+              }}
+            />
+          </div>
+
+          {/* Quick Demo Pre-load Samples */}
+          <div className="flex flex-col gap-2 p-4 rounded-2xl bg-[#0c0c0e] border border-[#161619]">
+            <div className="text-[11px] font-bold text-[#8e8f96] uppercase tracking-wider flex items-center gap-1.5">
+              <Play className="w-3.5 h-3.5 text-[#8df85f]" />
+              Quick-Test Live Demonstration Samples
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const sampleCSV = `Employee_ID,Name,Social_Security_Number,Department,Account_Number,Annual_Base_Salary\nEMP-10492,Alice Wright,123-45-6789,Executive Leadership,4532891234569812,$1450000\nEMP-10821,Robert Vance,987-65-4321,Finance,9021847291,$980000`;
+                  const blob = new Blob([sampleCSV], { type: 'text/csv' });
+                  const testFile = new File([blob], 'EXECUTIVE_PAYROLL_AND_COMPENSATION.csv', { type: 'text/csv' });
+                  handleFileUpload(testFile);
                 }}
-              />
-            </label>
+                className="text-left p-3 rounded-xl bg-[#121316] border border-[#21232a] hover:border-[#8df85f] hover:bg-[#16171b] transition group cursor-pointer"
+              >
+                <div className="text-xs font-bold text-white group-hover:text-[#8df85f]">Payroll CSV</div>
+                <div className="text-[10px] text-[#8e8f96]">SSN & Cards (RESTRICTED)</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const sampleWire = `CONFIDENTIAL WIRE TRANSFER MEMORANDUM\nBeneficiary: Barclays Bank UK\nSWIFT: BARCGB22XXX\nIBAN: GB29BARC20201534892144\nAmount: $14,850,000 USD\nReference: Escrow Settlement M&A`;
+                  const blob = new Blob([sampleWire], { type: 'text/plain' });
+                  const testFile = new File([blob], 'CONFIDENTIAL_WIRE_TRANSFER_MEMO.txt', { type: 'text/plain' });
+                  handleFileUpload(testFile);
+                }}
+                className="text-left p-3 rounded-xl bg-[#121316] border border-[#21232a] hover:border-[#8df85f] hover:bg-[#16171b] transition group cursor-pointer"
+              >
+                <div className="text-xs font-bold text-white group-hover:text-[#8df85f]">Wire Transfer TXT</div>
+                <div className="text-[10px] text-[#8e8f96]">IBAN & SWIFT (CONFIDENTIAL)</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const sampleSafe = `GLOBAL TECH ANNOUNCEMENT\nRelease Date: Q4 2026\nSecureFlow AI announces enterprise general availability of cryptographic zero-leak data loss prevention platform.`;
+                  const blob = new Blob([sampleSafe], { type: 'text/plain' });
+                  const testFile = new File([blob], 'BENIGN_PUBLIC_ANNOUNCEMENT.txt', { type: 'text/plain' });
+                  handleFileUpload(testFile);
+                }}
+                className="text-left p-3 rounded-xl bg-[#121316] border border-[#21232a] hover:border-[#8df85f] hover:bg-[#16171b] transition group cursor-pointer"
+              >
+                <div className="text-xs font-bold text-white group-hover:text-[#8df85f]">Public Release TXT</div>
+                <div className="text-[10px] text-[#8e8f96]">Clean Data (SAFE - ALLOW)</div>
+              </button>
+            </div>
           </div>
         </div>
 
