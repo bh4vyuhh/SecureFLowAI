@@ -286,6 +286,31 @@
 
       <div class="status-box" id="form-status" style="display: none;"></div>
     </div>
+
+    <!-- SCENARIO 3: FILE UPLOAD & ATTACHMENT GUARD -->
+    <div class="card">
+      <h2>📁 Scenario 3: File Upload & Document Attachment Guard (Fetch & XHR Interceptor)</h2>
+      <p>
+        Tests file uploads via file picker or drag-and-drop. The extension inspects file contents before network
+        transmission. If sensitive cards, credentials, or PII are found, the upload is <strong>completely aborted</strong>.
+      </p>
+
+      <div class="form-group">
+        <label for="doc-file">Select Local Document (.txt, .csv, .json, .log, etc.):</label>
+        <input type="file" id="doc-file" style="margin-bottom: 10px;">
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button type="button" class="submit-btn" style="background: #ef4444; color: white;" onclick="testUploadSensitiveFile()">
+          🧪 Test Uploading Sensitive File (Card & Password Payload)
+        </button>
+        <button type="button" class="submit-btn" style="background: #3b82f6; color: white;" onclick="testUploadCleanFile()">
+          📄 Test Uploading Clean Document
+        </button>
+      </div>
+
+      <div class="status-box" id="upload-status" style="display: none; margin-top: 14px;"></div>
+    </div>
   </div>
 
   <script>
@@ -299,7 +324,6 @@
     }
 
     function simulateEmailSend() {
-      // If the extension does NOT block it, this will execute:
       const status = document.getElementById("email-status");
       status.style.display = "block";
       status.style.background = "rgba(239, 68, 68, 0.15)";
@@ -310,13 +334,70 @@
 
     function handleFormSubmit(event) {
       event.preventDefault();
-      // If the extension does NOT block it, this will execute:
       const status = document.getElementById("form-status");
       status.style.display = "block";
       status.style.background = "rgba(239, 68, 68, 0.15)";
       status.style.borderColor = "#ef4444";
       status.style.color = "#fca5a5";
       status.innerText = "⚠️ WARNING: Form submitted! (Extension was not enabled or did not intercept).";
+    }
+
+    async function testUploadSensitiveFile() {
+      const status = document.getElementById("upload-status");
+      status.style.display = "block";
+      status.innerText = "Initiating upload of sensitive document (Card: 4111-1111-1111-1111, db_pass: MasterSecret!)...";
+
+      const sensitiveText = "EMPLOYEE PAYROLL RECORD\nCard Number: 4111-1111-1111-1111\nDatabase db_pass: SuperSecret2026!\nSSN: 123-45-6789";
+      const blob = new Blob([sensitiveText], { type: "text/plain" });
+      const file = new File([blob], "confidential_payroll_export.txt", { type: "text/plain" });
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const resp = await fetch("/api/test-upload-sink", {
+          method: "POST",
+          body: formData
+        });
+        status.style.background = "rgba(239, 68, 68, 0.15)";
+        status.style.borderColor = "#ef4444";
+        status.style.color = "#fca5a5";
+        status.innerText = "⚠️ WARNING: Upload reached server without being blocked!";
+      } catch (err) {
+        status.style.background = "rgba(16, 185, 129, 0.15)";
+        status.style.borderColor = "#10b981";
+        status.style.color = "#6ee7b7";
+        status.innerText = "🛡️ SUCCESS: Upload was blocked before network transmission! (" + err.message + ")";
+      }
+    }
+
+    async function testUploadCleanFile() {
+      const status = document.getElementById("upload-status");
+      status.style.display = "block";
+      status.innerText = "Initiating upload of clean business report...";
+
+      const cleanText = "Q4 Quarterly Strategic Marketing Overview\nAll targets on track for delivery.\nTeam meeting scheduled next week.";
+      const blob = new Blob([cleanText], { type: "text/plain" });
+      const file = new File([blob], "quarterly_marketing_clean.txt", { type: "text/plain" });
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        await fetch("/api/test-upload-sink", {
+          method: "POST",
+          body: formData
+        });
+        status.style.background = "rgba(16, 185, 129, 0.15)";
+        status.style.borderColor = "#10b981";
+        status.style.color = "#6ee7b7";
+        status.innerText = "✅ Clean document upload permitted (No confidential data).";
+      } catch (err) {
+        status.style.background = "rgba(16, 185, 129, 0.15)";
+        status.style.borderColor = "#10b981";
+        status.style.color = "#6ee7b7";
+        status.innerText = "✅ Clean document upload permitted.";
+      }
     }
   </script>
 </body>

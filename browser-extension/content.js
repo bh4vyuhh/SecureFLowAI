@@ -432,14 +432,23 @@
   function inspectFileObject(file, sourceElement) {
     if (!file) return;
 
-    if (file.type.startsWith("text/") || /\.(txt|csv|log|json|xml|md|sql)$/i.test(file.name)) {
+    if (file.type.startsWith("text/") || /\.(txt|csv|log|json|xml|md|sql|env|ini|conf)$/i.test(file.name)) {
       const reader = new FileReader();
       reader.onload = function (e) {
         const text = e.target.result || "";
         const detected = detectSensitivePii(text);
         if (detected.length > 0) {
           if (sourceElement && "value" in sourceElement) {
-            try { sourceElement.value = ""; } catch (_) {}
+            try {
+              sourceElement.value = "";
+              if (sourceElement.files) {
+                sourceElement.files = new DataTransfer().files;
+              }
+            } catch (_) {}
+          }
+          if (sourceElement && sourceElement.style) {
+            sourceElement.style.outline = "3px solid #ff4d4f";
+            sourceElement.style.boxShadow = "0 0 25px rgba(255, 77, 79, 0.75)";
           }
           showInPageAlert(detected, `File Upload Blocked: ${file.name}`, true);
 
@@ -462,35 +471,36 @@
         }
       };
       reader.readAsText(file);
-    } else if (
-      /\.(pdf|docx|xlsx|png|jpg|jpeg|bmp)$/i.test(file.name) ||
-      file.type.startsWith("image/") ||
-      file.type === "application/pdf"
-    ) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const base64Data = (e.target.result || "").split(",")[1];
-        if (base64Data) {
-          safeDispatchEvent({
-            eventId: "ext-bin-" + Math.random().toString(36).substring(2, 10),
-            timestamp: new Date().toISOString(),
-            source: "CHROME_EXTENSION",
-            eventType: "BINARY_DOCUMENT_UPLOAD",
-            fileName: file.name,
-            fileBytesBase64: base64Data,
-            actionEnforced: "INSPECT",
-            metadata: {
-              url: window.location.href,
-              hostname: window.location.hostname,
-              fileSize: file.size,
-              fileType: file.type,
-            },
-          });
-        }
-      };
-      reader.readAsDataURL(file);
     }
   }
+
+  // Listen for Kernel-Level Upload Blocks from network_guard.js
+  window.addEventListener("SECUREFLOW_FILE_UPLOAD_BLOCKED", function (e) {
+    if (!e || !e.detail) return;
+    const { filename, reasons } = e.detail;
+    showInPageAlert(reasons || ["Confidential Data"], `File Upload Blocked: ${filename || "Document"}`, true);
+
+    const uploadTargets = document.querySelectorAll(
+      "input[type='file'], [class*='dropzone'], [class*='upload'], [id*='dropzone'], [id*='upload'], [role='region']"
+    );
+    uploadTargets.forEach((el) => {
+      if (el && el.style) {
+        el.style.outline = "3px solid #ff4d4f";
+        el.style.boxShadow = "0 0 25px rgba(255, 77, 79, 0.75)";
+      }
+      if (el && el.tagName === "INPUT" && el.type === "file") {
+        try { el.value = ""; el.files = new DataTransfer().files; } catch (_) {}
+      }
+    });
+  });
+
+  // Inject Main-World Network Guard if not already active
+  try {
+    const s = document.createElement("script");
+    s.src = chrome.runtime.getURL("network_guard.js");
+    s.onload = function () { this.remove(); };
+    (document.head || document.documentElement).appendChild(s);
+  } catch (_) {}
 
   window.addEventListener(
     "change",
