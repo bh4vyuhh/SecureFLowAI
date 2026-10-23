@@ -14,13 +14,18 @@ from typing import List, Dict, Any
 
 # Strictly ordered priority tier (lower number = higher priority)
 ENTITY_PRIORITY = {
-    # High Priority: Verified Mathematical Checksums & Credentials
+    # High Priority: Verified Mathematical Checksums & Sensitive Credentials
     "CREDIT_CARD": 1,
     "IBAN": 1,
     "US_SSN": 1,
     "ABA_ROUTING": 1,
     "PRIVATE_KEY": 2,
     "API_KEY": 2,
+    "PASSWORD_SECRET": 2,
+    "DB_CONNECTION": 2,
+    "JWT_TOKEN": 2,
+    "BANK_ACCOUNT": 2,
+    "PAN_CARD": 2,
     "SWIFT_BIC": 3,
     
     # Secondary Priority: Contextual Tokens

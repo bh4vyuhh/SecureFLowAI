@@ -74,7 +74,11 @@ class SecureFlowDesktopAgent:
             threat_cat = resp.get("threatCategory") or resp.get("threat_category") or ""
             explanation = resp.get("explanation") or ""
 
-        should_block = (action == "BLOCK" or risk >= 75 or tier == "RESTRICTED")
+        should_block = (
+            action in ("BLOCK", "ENCRYPT", "MASK") 
+            or risk >= 50 
+            or tier in ("RESTRICTED", "CONFIDENTIAL")
+        )
 
         if should_block:
             # Inline Strict Enforcement: wipe clipboard to stop exfiltration

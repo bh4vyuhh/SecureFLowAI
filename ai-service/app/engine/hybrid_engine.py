@@ -155,9 +155,12 @@ class HybridDLPEngine(IDLPEngine):
         t_redact = (time.perf_counter() - t_redact_start) * 1000.0
 
         # 7. Unified Risk Decision
-        critical_types = {"CREDIT_CARD", "PRIVATE_KEY", "API_KEY", "US_SSN"}
+        critical_types = {
+            "CREDIT_CARD", "PRIVATE_KEY", "API_KEY", "US_SSN",
+            "PASSWORD_SECRET", "DB_CONNECTION", "JWT_TOKEN", "PAN_CARD", "BANK_ACCOUNT"
+        }
         has_critical = any(e["entity_type"] in critical_types for e in resolved_ents)
-        financial_identifiers = {"IBAN", "ABA_ROUTING", "SWIFT_BIC"}
+        financial_identifiers = {"IBAN", "ABA_ROUTING", "SWIFT_BIC", "BANK_ACCOUNT"}
         has_financial = any(e["entity_type"] in financial_identifiers for e in resolved_ents)
 
         financial_keywords = {"ebitda", "treasury", "margin", "acquisition", "revenue", "dividend", "confidential", "internal only", "proprietary"}
@@ -173,8 +176,9 @@ class HybridDLPEngine(IDLPEngine):
 
         weights = {
             "CREDIT_CARD": 35, "PRIVATE_KEY": 40, "API_KEY": 30, "US_SSN": 30,
-            "IBAN": 25, "ABA_ROUTING": 20, "SWIFT_BIC": 15,
-            "PERSON": 3, "ORG": 3, "LOCATION": 2
+            "PASSWORD_SECRET": 35, "DB_CONNECTION": 35, "JWT_TOKEN": 30,
+            "IBAN": 25, "ABA_ROUTING": 20, "SWIFT_BIC": 15, "BANK_ACCOUNT": 25, "PAN_CARD": 25,
+            "CONFIDENTIAL_MARKER": 20, "PERSON": 3, "ORG": 3, "LOCATION": 2
         }
         entity_impact = sum(weights.get(e["entity_type"], 2) for e in resolved_ents)
         total_risk = min(100, base_score + entity_impact)

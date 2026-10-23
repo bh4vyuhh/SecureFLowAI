@@ -207,10 +207,20 @@ SWIFT_REGEX = re.compile(
     r"\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b"
 )
 
-# Live API credentials, Test tokens, and Private Key Headers
+# Live API credentials, Tokens, Passwords, and Database URIs
 STRIPE_KEY_REGEX = re.compile(r"\b(?:sk_live_|sk_test_)[0-9a-zA-Z]{24,}\b")
-GITHUB_TOKEN_REGEX = re.compile(r"\bghp_[0-9a-zA-Z]{36}\b")
+GITHUB_TOKEN_REGEX = re.compile(r"\bgh[pousr]_[0-9a-zA-Z]{36}\b")
 AWS_KEY_REGEX = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
+OPENAI_KEY_REGEX = re.compile(r"\bsk-[a-zA-Z0-9_\-]{20,}\b")
+GENERIC_KEY_REGEX = re.compile(r"\b(?:AIza[0-9A-Za-z\-_]{35}|xox[baprs]-[0-9a-zA-Z]{10,48}|hf_[0-9a-zA-Z]{34,})\b")
+PASSWORD_SECRET_REGEX = re.compile(r"(?i)\b(?:password|passwd|pwd|db_pass|secret|jwt_secret|private_key|access_key)[\s:=]+([^\s,;'\"]{5,})")
+JWT_TOKEN_REGEX = re.compile(r"\beyJ[a-zA-Z0-9_\-]{10,}\.eyJ[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{10,}\b")
+BEARER_TOKEN_REGEX = re.compile(r"\bBearer\s+[a-zA-Z0-9_\-\.]{25,}\b")
+DB_URI_REGEX = re.compile(r"\b(?:postgres|postgresql|mysql|mongodb|redis|mssql|jdbc):\/\/[^\s\"']+:[^\s\"']+@[^\s\"']+\b", re.IGNORECASE)
+BANK_ACCOUNT_REGEX = re.compile(r"(?i)\b(?:account|acct|a\/c|acc)[\s#:]+(\d{8,18})\b")
+PAN_CARD_REGEX = re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")
+CONFIDENTIAL_MARKER_REGEX = re.compile(r"(?i)\b(?:CONFIDENTIAL|STRICTLY CONFIDENTIAL|TRADE SECRET|INTERNAL USE ONLY|RESTRICTED DOCUMENT)\b")
+
 PEM_KEY_REGEX = re.compile(
     r"-----BEGIN (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----[^-]+-----END (?:RSA|EC|OPENSSH|DSA|ENCRYPTED|PRIVATE) KEY-----",
     re.DOTALL
@@ -242,11 +252,20 @@ def extract_rule_entities(text: str) -> List[Dict[str, Any]]:
             "confidence": 1.0
         })
 
-    # 2. API Keys
+    # 2. API Keys, Passwords, Secrets, Tokens, and DB URIs
     for regex, etype in [
         (STRIPE_KEY_REGEX, "API_KEY"),
         (GITHUB_TOKEN_REGEX, "API_KEY"),
-        (AWS_KEY_REGEX, "API_KEY")
+        (AWS_KEY_REGEX, "API_KEY"),
+        (OPENAI_KEY_REGEX, "API_KEY"),
+        (GENERIC_KEY_REGEX, "API_KEY"),
+        (BEARER_TOKEN_REGEX, "API_KEY"),
+        (JWT_TOKEN_REGEX, "API_KEY"),
+        (PASSWORD_SECRET_REGEX, "PASSWORD_SECRET"),
+        (DB_URI_REGEX, "DB_CONNECTION"),
+        (BANK_ACCOUNT_REGEX, "BANK_ACCOUNT"),
+        (PAN_CARD_REGEX, "PAN_CARD"),
+        (CONFIDENTIAL_MARKER_REGEX, "CONFIDENTIAL_MARKER"),
     ]:
         for m in regex.finditer(text):
             entities.append({
@@ -257,29 +276,35 @@ def extract_rule_entities(text: str) -> List[Dict[str, Any]]:
                 "confidence": 1.0
             })
 
-    # 3. Credit / Debit Cards (Must pass Luhn)
+    # 3. Credit / Debit Cards (Valid Luhn OR formatted as standard card groups)
     for m in CARD_REGEX.finditer(text):
         val = m.group(0)
         digits_only = re.sub(r"\D", "", val)
-        if 13 <= len(digits_only) <= 19 and validate_luhn(digits_only):
-            entities.append({
-                "entity_type": "CREDIT_CARD",
-                "start": m.start(),
-                "end": m.end(),
-                "value": val,
-                "confidence": 1.0
-            })
+        if 13 <= len(digits_only) <= 19:
+            start, end = m.start(), m.end()
+            ctx = text[max(0, start - 30): min(len(text), end + 30)].lower()
+            is_valid_luhn = validate_luhn(digits_only)
+            has_card_context = any(k in ctx for k in ["card", "cc", "visa", "master", "amex", "pan", "exp", "cvv", "payment", "debit", "credit"])
+            is_grouped = bool(re.search(r"^\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{1,4}$", val))
+            if is_valid_luhn or is_grouped or has_card_context:
+                entities.append({
+                    "entity_type": "CREDIT_CARD",
+                    "start": m.start(),
+                    "end": m.end(),
+                    "value": val,
+                    "confidence": 1.0 if is_valid_luhn else 0.95
+                })
 
-    # 4. IBANs (Must pass MOD-97)
+    # 4. IBANs (MOD-97 valid or standard international IBAN structure)
     for m in IBAN_REGEX.finditer(text):
         val = m.group(0)
-        if validate_iban(val):
+        if validate_iban(val) or len(re.sub(r"\s+", "", val)) >= 15:
             entities.append({
                 "entity_type": "IBAN",
                 "start": m.start(),
                 "end": m.end(),
                 "value": val,
-                "confidence": 1.0
+                "confidence": 1.0 if validate_iban(val) else 0.9
             })
 
     # 5. US SSNs (Must satisfy SSA structural rules)
